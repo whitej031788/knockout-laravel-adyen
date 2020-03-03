@@ -1,0 +1,19 @@
+html, body {
+  height: 100%;
+}
+
+body {
+  background: linear-gradient(45deg, #0abf53 0%, #4ee5e5 100%);
+  -webkit-linear-gradient(45deg, #0abf53 0%, #4ee5e5 100%);
+}
+
+.see-through, .see-through * {
+  background-color: rgba(255, 255, 255, 0);
+}
+
+.mild-opacity {
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  border-radius: 10px;
+  padding: 15px;
+}
