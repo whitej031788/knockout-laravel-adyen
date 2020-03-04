@@ -4,8 +4,54 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "1cbd58dd0f0e8deb9db09ef9038d51fd",
+    "content-hash": "0cfa7cb10cc90c59bbc81efcd5f5a29a",
     "packages": [
+        {
+            "name": "adyen/php-api-library",
+            "version": "6.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Adyen/adyen-php-api-library.git",
+                "reference": "6aad932a6daa8167dcbe26b99b7220a1a0cbc0f9"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Adyen/adyen-php-api-library/zipball/6aad932a6daa8167dcbe26b99b7220a1a0cbc0f9",
+                "reference": "6aad932a6daa8167dcbe26b99b7220a1a0cbc0f9",
+                "shasum": ""
+            },
+            "require": {
+                "monolog/monolog": ">=1.16",
+                "php": ">=5.3"
+            },
+            "require-dev": {
+                "dms/phpunit-arraysubset-asserts": "0.2.0",
+                "ext-json": "*",
+                "friendsofphp/php-cs-fixer": "*",
+                "php-coveralls/php-coveralls": "2.2.0",
+                "phpunit/phpunit": "9.0.1",
+                "squizlabs/php_codesniffer": "3.5.4"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Adyen\\": "src/Adyen/"
+                },
+                "classmap": [
+                    "src/Adyen/Service/"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "description": "A PHP client library for accessing Adyen APIs",
+            "homepage": "https://github.com/Adyen/adyen-php-api-library",
+            "keywords": [
+                "adyen"
+            ],
+            "time": "2020-02-27T08:23:03+00:00"
+        },
         {
             "name": "dnoegel/php-xdg-base-dir",
             "version": "v0.1.1",
