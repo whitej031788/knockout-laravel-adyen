@@ -12,13 +12,23 @@
 */
 
 Route::get('/', function () {
-    return view('home');
+  return view('home');
 });
 
 Route::get('/components', function () {
-    return view('components');
+  return view('components');
+});
+
+Route::get('/classic-client-encryption', function () {
+  $datetime = new DateTime();
+
+  return view('classic-client-encryption', ['datetime' => $datetime->format(DateTime::ATOM)]);
 });
 
 Route::get('/api-only', function () {
-    return view('api-only');
+  return view('api-only');
 });
+
+Route::post('/threeds-redirect/{payRef}', 'AdyenController@threeDSRedirect');
+
+Route::get('/normal-redirect/{payRef}', 'AdyenController@normalRedirect');

@@ -1,23 +1,32 @@
-<form>
-  <div class="form-group">
+<form data-bind="submit: submitPaymentMethods">
+  <div class="form-group" id="paymentMethodForm">
     <label for="merchantAccount">Merchant Account:</label>
-    <input type="text" class="form-control" id="merchantAccount" placeholder="Enter merchant account" disabled>
+    <input type="text" class="form-control" id="merchantAccount" placeholder="Enter merchant account" data-bind="value: paymentMethodForm.merchantAccount" disabled>
   </div>
   <div class="form-group">
     <label for="countryCode">Country Code:</label>
-    <input type="text" maxlength="2" class="form-control" id="countryCode" placeholder="Enter country code" onkeyup="this.value = this.value.toUpperCase();">
+    <input type="text" maxlength="2" class="form-control" id="countryCode" placeholder="Enter country code" data-bind="value: paymentMethodForm.countryCode" onkeyup="this.value = this.value.toUpperCase();">
   </div>
   <div class="form-group">
     <label for="amount">Amount:</label>
-    <input type="number" class="form-control" id="amount" placeholder="Enter amount">
+    <input type="number" class="form-control" id="amount" placeholder="Enter amount" data-bind="value: paymentMethodForm.amount">
   </div>
   <div class="form-group">
     <label for="currency">Currency:</label>
-    <input maxlength="3" type="text" class="form-control" id="currency" placeholder="Enter currency" onkeyup="this.value = this.value.toUpperCase();">
+    <input maxlength="3" type="text" class="form-control" id="currency" placeholder="Enter currency" data-bind="value: paymentMethodForm.currency" onkeyup="this.value = this.value.toUpperCase();">
   </div>
   <div class="form-group">
     <label for="channel">Channel:</label>
-    <input type="text" class="form-control" id="channel" placeholder="Enter channel" disabled>
+    <input type="text" class="form-control" id="channel" placeholder="Enter channel" data-bind="value: paymentMethodForm.channel" disabled>
   </div>
+  <div class="form-group">
+    <label for="channel">Reference:</label>
+    <input type="text" class="form-control" id="reference" placeholder="Enter reference" data-bind="value: paymentMethodForm.reference">
+  </div>
+  <div class="form-group">
+    <label for="channel">Shopper Reference:</label>
+    <input type="text" class="form-control" id="shopperReference" placeholder="Enter shopper reference" data-bind="value: paymentMethodForm.shopperReference">
+  </div>
+  <div class="col-md-12 text-center alert-danger small mb-2" data-bind="text: paymentMethodForm.error, visible: paymentMethodForm.error"></div>
   <button type="submit" class="btn btn-primary">Submit</button>
 </form>

@@ -14,7 +14,15 @@ use Illuminate\Http\Request;
 */
 
 Route::middleware('auth:api')->get('/user', function (Request $request) {
-    return $request->user();
+  return $request->user();
 });
 
-Route::get('/adyen/getPaymentMethods', 'AdyenController@getPaymentMethods');
+Route::post('/adyen/getPaymentMethods', 'AdyenController@getPaymentMethods');
+
+Route::post('/adyen/classicPayment', 'AdyenController@classicPayment');
+
+Route::post('/adyen/makePaymentSimple', 'AdyenController@makePaymentSimple');
+
+Route::post('/adyen/makePayment3DS2', 'AdyenController@makePayment3DS2');
+
+Route::post('/adyen/paymentDetails', 'AdyenController@paymentDetails');
