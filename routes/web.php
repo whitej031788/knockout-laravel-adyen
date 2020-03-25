@@ -19,6 +19,13 @@ Route::get('/components', function () {
   return view('components');
 });
 
+Route::get('/classic-hpp', function () {
+  $datetime = new DateTime();
+  $datetime->modify('+1 day');
+
+  return view('classic-hpp', ['datetime' => $datetime->format(DateTime::ATOM)]);
+});
+
 Route::get('/classic-client-encryption', function () {
   $datetime = new DateTime();
 

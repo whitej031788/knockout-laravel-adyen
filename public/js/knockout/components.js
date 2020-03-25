@@ -9,48 +9,84 @@ function contentsKnockoutObj() {
   this.enablePayButton = ko.observable(false);
   this.enable3DS2 = ko.observable(false);
   this.populateFakeAddress = ko.observable(true);
+  this.dropIn = ko.observable(true);
+  this.secureFields = ko.observable(false);
+  this.havePaymentMethods = ko.observable(false);
+  this.enableStoreDetails = ko.observable(true);
+  this.apiUrlOrMethod = ko.observable('');
+  this.apiRequest = ko.observable('');
+  this.apiResponse = ko.observable('');
+  this.redirectAction = {};
+  this.redirPrettyPrint = ko.observable('');
+  this.pspReference = ko.observable('');
+  this.canCapture = ko.observable(false);
 
   this.submitPaymentMethods = function() {
+    this.havePaymentMethods(false);
+
     var checkOptions = {
-      enableStoreDetails: true
+      paymentMethodsConfiguration: {
+        card: {}
+      }
     };
 
-    if (this.enable3DS2()) {
-      checkOptions = {
-       hasHolderName: true,
-       holderNameRequired: true,
-       enableStoreDetails: true
-      };
+    if (this.enableStoreDetails()) {
+      checkOptions.paymentMethodsConfiguration.card.enableStoreDetails = true;
+    }
 
+    if (this.enable3DS2()) {
+      checkOptions.paymentMethodsConfiguration.card.holderNameRequired = true;
+      checkOptions.paymentMethodsConfiguration.card.hasHolderName = true;
       if (!this.populateFakeAddress()) {
-        checkOptions.billingAddressRequired = true;
+        checkOptions.paymentMethodsConfiguration.card.billingAddressRequired = true;
       }
     }
+
+    checkOptions.paymentMethodsConfiguration.paywithgoogle = this.gPayConfig();
+
     this.paymentMethodForm.submitMethodRequest()
     .then(data => {
-      self.adyenCheckout = new window.AdyenCheckout(self.buildConfig(data));
-      self.createSecureFields();
-      if (self.isPayMethodSupport(data.paymentMethods, 'scheme')) {
-        self.adyenCheckout.create("card", checkOptions).mount("#card-container");
-      }
+      self.havePaymentMethods(true);
+      self.populatePostman(data);
 
-      if (self.isPayMethodSupport(data.paymentMethods, 'alipay')) {
-        self.adyenCheckout.create('alipay', checkOptions).mount('#alipay-container');
-      }
+      self.adyenCheckout = new window.AdyenCheckout(self.buildConfig(data.response));
 
-      if (self.isPayMethodSupport(data.paymentMethods, 'klarna')) {
-        self.adyenCheckout.create("klarna", checkOptions).mount("#klarna-container");
+      if (self.secureFields()) {
+        self.createSecureFields();
+      } else if (self.dropIn()) {
+        self.dropInObj = self.adyenCheckout.create("dropin", checkOptions).mount("#dropin-container");
+      } else {
+        self.buildComponents(data.response, checkOptions);
       }
-
-      if (self.isPayMethodSupport(data.paymentMethods, 'sepadirectdebit')) {
-        self.adyenCheckout.create("sepadirectdebit", checkOptions).mount("#sepadirectdebit-container");
-      }
-      self.showPayButton(true);
-      console.log(data);
     })
     .catch(error => {
       console.log(error);
     });
+  }
+
+  this.populatePostman = function(data) {
+    this.apiUrlOrMethod(data.method);
+    this.apiRequest(this.jsonPrettyHighlightToId(data.request));
+    this.apiResponse(this.jsonPrettyHighlightToId(data.response));
+  }
+
+  this.buildComponents = function(data, checkOptions) {
+    if (self.isPayMethodSupport(data.paymentMethods, 'scheme')) {
+      self.adyenCheckout.create("card", checkOptions).mount("#card-container");
+    }
+
+    if (self.isPayMethodSupport(data.paymentMethods, 'alipay')) {
+      self.adyenCheckout.create('alipay', checkOptions).mount('#alipay-container');
+    }
+
+    if (self.isPayMethodSupport(data.paymentMethods, 'klarna')) {
+      self.adyenCheckout.create("klarna", checkOptions).mount("#klarna-container");
+    }
+
+    if (self.isPayMethodSupport(data.paymentMethods, 'sepadirectdebit')) {
+      self.adyenCheckout.create("sepadirectdebit", checkOptions).mount("#sepadirectdebit-container");
+    }
+    self.showPayButton(true);
   }
 
   this.buildConfig = function(data) {
@@ -61,6 +97,7 @@ function contentsKnockoutObj() {
       environment: "test", // When you're ready to accept live payments, change the value to one of our live environments https://docs.adyen.com/checkout/components-web#testing-your-integration.
       originKey: self.originKey, // Your website's Origin Key. To find out how to generate one, see https://docs.adyen.com/user-management/how-to-get-an-origin-key.
       paymentMethodsResponse: data, // The payment methods response returned in step 1.
+      showPayButton: true,
       onChange: function (state, component) {
         if (state.isValid) {
           self.enablePayButton(true);
@@ -68,16 +105,13 @@ function contentsKnockoutObj() {
         } else {
           self.enablePayButton(false);
         }
-        console.log(state);
       },
       onAdditionalDetails: function (state, component) {
-        console.log(state);
         self.getPaymentDetails(state.data);
       },
       onSubmit: function (state, component) {
         self.payMethodData = state.data;
         self.submitPayment();
-        console.log(state);
       }
     }
 
@@ -100,12 +134,45 @@ function contentsKnockoutObj() {
       dataType: 'json',
       type: 'post',
       data: self.paymentJson(this.enable3DS2()),
-      success: function(data, textStatus, jQxhr) {
+      success: function(retData, textStatus, jQxhr) {
+        self.populatePostman(retData);
+        let data = retData.response;
+        if (data.resultCode && data.resultCode == "Authorised") {
+          self.pspReference(data.pspReference);
+          self.canCapture(true);
+        }
+
         if (data.action && data.action.type && (data.action.type == 'threeDS2Fingerprint' || data.action.type == 'threeDS2Challenge')) {
           self.adyenCheckout.createFromAction(data.action).mount('#action-container');
         } else if (data.action && data.action.type && data.action.type == 'redirect') {
-          self.adyenCheckout.createFromAction(data.action).mount('#action-container');
+          self.redirPrettyPrint(self.jsonPrettyHighlightToId(data.action));
+          self.redirectAction = data.action;
+          $('#redirectModal').modal('toggle');
         }
+      },
+      error: function(jqXhr, textStatus, errorThrown) {
+        console.log(errorThrown);
+      }
+    });
+  }
+
+  this.submitCapture = function() {
+    let self = this;
+
+    $.ajax({
+      url: '/api/adyen/capturePayment',
+      dataType: 'json',
+      type: 'post',
+      data: {
+        "originalReference" : self.pspReference(),
+        "merchantAccount" : self.paymentMethodForm.merchantAccount(),
+        "modificationAmount" : {
+          "value" : parseInt(self.paymentMethodForm.amount()),
+          "currency" : self.paymentMethodForm.currency()
+        }
+      },
+      success: function(retData, textStatus, jQxhr) {
+        self.populatePostman(retData);
       },
       error: function(jqXhr, textStatus, errorThrown) {
         console.log(errorThrown);
@@ -121,7 +188,14 @@ function contentsKnockoutObj() {
       dataType: 'json',
       type: 'post',
       data: {data: data},
-      success: function(data, textStatus, jQxhr) {
+      success: function(retData, textStatus, jQxhr) {
+        self.populatePostman(retData);
+        let data = retData.response;
+        if (data.resultCode && data.resultCode == "Authorised") {
+          self.pspReference(data.pspReference);
+          self.canCapture(true);
+        }
+
         if (data.action && data.action.type && (data.action.type == 'threeDS2Fingerprint' || data.action.type == 'threeDS2Challenge')) {
           self.adyenCheckout.createFromAction(data.action).mount('#action-container');
         }
@@ -178,16 +252,80 @@ function contentsKnockoutObj() {
           }
       },
       // Events
-      onChange: function(data) {console.log(data)},
-      onValid : function() {},
+      onChange: function(data) {
+        console.log(data)
+      },
+      onValid : function(e) {
+        console.log(e);
+      },
       onLoad: function() {},
       onConfigSuccess: function() {},
-      onFieldValid : function() {},
+      onFieldValid : function(e) {
+        console.log(e);
+      },
       onBrand: function() {},
-      onError: function() {},
+      onError: function(e) {
+        console.log('test', e);
+      },
       onFocus: function() {},
       onBinValue: function(bin) {console.log(bin)}
     }).mount('#customCard-container');
+  }
+
+  this.jsonPrettyHighlightToId = function(jsonobj) {
+    var json = JSON.stringify(jsonobj, undefined, 2);
+
+    json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    json = json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+      var cls = 'color: darkorange;';
+      if (/^"/.test(match)) {
+        if (/:$/.test(match)) {
+          cls = 'color: red;';
+        } else {
+          cls = 'color: green;';
+        }
+      } else if (/true|false/.test(match)) {
+        cls = 'color: blue;';
+      } else if (/null/.test(match)) {
+        cls = 'color: magenta;';
+      }
+      return '<span style="' + cls + '">' + match + '</span>';
+    });
+
+    return json;
+  }
+
+  this.followRedirect = function() {
+    this.adyenCheckout.createFromAction(this.redirectAction).mount('#action-container');
+  }
+
+  this.gPayConfig = function() {
+    let obj = { // Example required configuration for Google Pay
+      environment: "TEST", // Change this to PRODUCTION when you're ready to accept live Google Pay payments
+      amount: {
+        currency: this.paymentMethodForm.currency(),
+        value: this.paymentMethodForm.amount()
+      },
+      configuration: {
+        gatewayMerchantId: this.paymentMethodForm.merchantAccount(), // Your Adyen merchant or company account name
+        //merchantIdentifier: "12345678910111213141", // Required for PRODUCTION. Remove this object in TEST. Your Google Merchant ID as described in https://developers.google.com/pay/api/web/guides/test-and-deploy/deploy-production-environment#obtain-your-merchantID
+        merchantName: "Jamie Gpay Test" // Optional. The name that appears in the payment sheet.
+      },
+      buttonColor: "white", //Optional. Use a white Google Pay button.
+      //For other optional configuration, see section below.
+      onChange: (state) => {
+        console.log(state);
+      },
+      onSubmit: (state) => {
+        self.payMethodData = state.data;
+        self.submitPayment();
+        console.log(state);
+      },
+      onAuthorized: (data) => {
+        console.log(data);
+      }
+    }
+    return obj;
   }
 }
 

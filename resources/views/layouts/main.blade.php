@@ -11,9 +11,9 @@
     <!-- Style Sheets -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
     <link rel="stylesheet" href="/css/adyen-custom.css">
-    <link rel="stylesheet" href="https://checkoutshopper-live.adyen.com/checkoutshopper/sdk/3.5.0/adyen.css"
-    integrity="sha384-aWycvW8Dygg+6QHTq56FJMi4CJBjQt4LbRO3zWUuyfbv0A8g3rb5FR/vHyHKfiY0"
-    crossorigin="anonymous">
+    <link rel="stylesheet" href="https://checkoutshopper-live.adyen.com/checkoutshopper/sdk/3.6.1/adyen.css"
+integrity="sha384-l5/gSrWMFWCKnEqoG1F21fvhDesLnZt/JlXjkA0FWp6E68Pc/9mxg+nPvvx+uB4G"
+crossorigin="anonymous">
   </head>
   <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
@@ -32,14 +32,21 @@
           <li class="nav-item">
             <a class="nav-link" href="/api-only">API Only</a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/classic-client-encryption">Classic CSE / Authorise EP</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/classic-hpp">Classic HPP</a>
+          </li>
         </ul>
       </div>
     </nav>
-    <div class="container">
+    <div class="container-fluid">
       @yield('content')
     </div>
-    <script src="https://checkoutshopper-live.adyen.com/checkoutshopper/sdk/3.5.0/adyen.js"
-    integrity="sha384-MpcW2OFcC1/y5nwF6UmvRfDXGISpg1rowHVybiS+wJObkUwgFpvbdpJxR2/bwmeA"
+    <script src="https://pay.google.com/gp/p/js/pay.js"></script>
+    <script src="https://checkoutshopper-live.adyen.com/checkoutshopper/sdk/3.6.1/adyen.js"
+    integrity="sha384-hUb/CFxzLJZWUbDBmQfccbVjE3LFxAx3Wt4O37edYVLZmNhcmVUyYLgn6kWk3Hz+"
     crossorigin="anonymous"></script>
     <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>

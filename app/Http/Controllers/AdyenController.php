@@ -14,26 +14,28 @@ class AdyenController extends Controller
   }
 
   public function getPaymentMethods(Request $request) {
+    $checkoutService = new \Adyen\Service\Checkout($this->adyenClient);
+
     $validatedData = $request->validate([
         'merchantAccount' => 'required',
         'countryCode' => 'required',
         'channel' => 'required'
     ]);
 
-    $service = new \Adyen\Service\Checkout($this->adyenClient);
-
     $params = array(
       "merchantAccount" => $request->merchantAccount,
       "countryCode" => $request->countryCode,
-      "channel" => $request->channel
+      "channel" => $request->channel,
+      "amount" => $request->amount,
+      "shopperReference" => $request->shopperReference
     );
 
-    $result = $service->paymentMethods($params);
+    $result = $this->makeAdyenRequest("paymentMethods", $params, false, $checkoutService);
     return response()->json($result);
   }
 
   public function makePaymentSimple(Request $request) {
-    $service = new \Adyen\Service\Checkout($this->adyenClient);
+    $checkoutService = new \Adyen\Service\Checkout($this->adyenClient);
 
     $paymentMethod = $request->payData['paymentMethod'];
 
@@ -50,30 +52,29 @@ class AdyenController extends Controller
       "shopperReference" => $request->shopperReference
     );
 
-    if (array_key_exists('storePaymentMethod', $request->payData)) {
-      $params['storePaymentMethod'] = $request->payData['storePaymentMethod'];
-    }
+    //if (array_key_exists('storePaymentMethod', $request->payData)) {
+      $params['storePaymentMethod'] = true;//$request->payData['storePaymentMethod'];
+      $params['recurringProcessingModel'] = "CardOnFile";
+    //}
 
     if (strpos($paymentMethod['type'], 'klarna') !== false) {
       $this->addKlarnaData($params);
     }
 
-    //var_dump(json_encode($params));
+    $result = $this->makeAdyenRequest("payments", $params, false, $checkoutService);
 
-    $result = $service->payments($params);
-
-    if ($result['resultCode'] == 'RedirectShopper') {
-      $cache = Cache::forever($request->shopperReference . '-' . $request->reference, $result['paymentData']);
+    if ($result['response']['resultCode'] == 'RedirectShopper') {
+      $cache = Cache::forever($request->shopperReference . '-' . $request->reference, $result['response']['paymentData']);
     }
 
-    // Check if further action is needed.
     return response()->json($result);
   }
 
   public function makePayment3DS2(Request $request) {
-    $service = new \Adyen\Service\Checkout($this->adyenClient);
+    $checkoutService = new \Adyen\Service\Checkout($this->adyenClient);
 
     $paymentMethod = $request->payData['paymentMethod'];
+
     if ($request->populateFakeAddress) {
       $billingAddress = $this->fakeAddressArray();
     } else {
@@ -104,31 +105,65 @@ class AdyenController extends Controller
       $params['storePaymentMethod'] = $request->payData['storePaymentMethod'];
     }
 
-    $result = $service->payments($params);
+    $result = $this->makeAdyenRequest("payments", $params, false, $checkoutService);
 
-    if ($result['resultCode'] == 'RedirectShopper') {
-      $cache = Cache::forever($request->shopperReference . '-' . $request->reference, $result['paymentData']);
+    if ($result['response']['resultCode'] == 'RedirectShopper') {
+      $cache = Cache::forever($request->shopperReference . '-' . $request->reference, $result['response']['paymentData']);
     }
     // Check if further action is needed.
     return response()->json($result);
   }
 
   public function paymentDetails(Request $request) {
-    $service = new \Adyen\Service\Checkout($this->adyenClient);
+    $checkoutService = new \Adyen\Service\Checkout($this->adyenClient);
 
     $params = $request->data;
     // Data object passed from onAdditionalDetails event of the front end parsed from JSON to an array
 
-    $result = $service->paymentsDetails($params);
+    $result = $this->makeAdyenRequest("paymentsDetails", $params, false, $checkoutService);
 
     return response()->json($result);
+  }
+
+  public function capturePayment(Request $request) {
+    $modificationService = new \Adyen\Service\Modification($this->adyenClient);
+
+    $params = $request->all();
+    // Data object passed from onAdditionalDetails event of the front end parsed from JSON to an array
+
+    $result = $this->makeAdyenRequest("capture", $params, false, $modificationService);
+
+    return response()->json($result);
+  }
+
+  // DEPRECATED
+  public function signHppHmac(Request $request) {
+    //JSON-ify the data for the POST
+    $pairs = $request->all();
+    ksort($pairs, SORT_STRING);
+    $HMAC_KEY = "70612EFE64ADF31F3468331815ADDE07FD5A31CF09E54EE50845C1D28ECA980D";
+    $escapedPairs = array();
+
+    foreach ($pairs as $key => $value) {
+      $escapedPairs[$key] = str_replace(':','\\:', str_replace('\\', '\\\\', $value));
+    }
+
+    $signingString = implode(":", array_merge(array_keys($escapedPairs), array_values($escapedPairs)));
+
+    $binaryHmacKey = pack("H*" , $HMAC_KEY);
+
+    $binaryHmac = hash_hmac('sha256', $signingString, $binaryHmacKey, true);
+
+    $signature = base64_encode($binaryHmac);
+
+    return response()->json($signature);
   }
 
   public function threeDSRedirect(Request $request, $payRef) {
     $value = Cache::store('file')->get($payRef);
     $response = $this->redirPayDet($value, ['MD' => $request->MD, 'PaRes' => $request->PaRes]);
 
-    var_dump($response);
+    return view('redirect-page', ['serverObject' => json_encode($response)]);
   }
 
   public function normalRedirect($payRef) {
@@ -136,12 +171,13 @@ class AdyenController extends Controller
     $input = Input::all();
     $response = $this->redirPayDet($value, $input);
 
-    var_dump($response);
+    return view('redirect-page', ['serverObject' => json_encode($response)]);
   }
 
   public function classicPayment(Request $request) {
     $url = 'https://pal-test.adyen.com/pal/servlet/Payment/v51/authorise';
-    $fields = array(
+
+    $params = array(
       'reference' => '2378rt3gf4b3',
       'merchantAccount' => 'JamieAdyenTestECOM',
       'amount' => array(
@@ -153,29 +189,25 @@ class AdyenController extends Controller
       )
     );
 
-    //JSON-ify the data for the POST
-    $fields_string = json_encode($fields);
+    $result = $this->makeAdyenRequest($url, $params, true, false);
 
-    $username = "ws_363464@Company.JamieAdyenTest";
-    $password = "}+5k?72wIZSQ6n7Xks^t^3S--";
+    return response()->json($result);
+  }
 
-    //open connection
-    $ch = curl_init();
-    //set the url, number of POST vars, POST data
-    curl_setopt($ch,CURLOPT_URL, $url);
-    curl_setopt($ch,CURLOPT_POST, 1);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch,CURLOPT_POSTFIELDS, $fields_string);
-    curl_setopt($ch, CURLOPT_USERPWD, $username . ":" . $password);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-      'Content-Type: application/json'
-    ));
+  public function payGiftCard(Request $request) {
+    $url = 'https://pal-test.adyen.com/pal/servlet/Payment/v51/authorise';
 
-    //execute post
-    $result = curl_exec($ch);
-    //close connection
-    curl_close($ch);
-    echo $result;
+    $params = array(
+      'reference' => $request->reference,
+      'merchantAccount' => $request->merchantAccount,
+      'selectedBrand' => $request->selectedBrand,
+      'amount' => $request->amount,
+      'card' => $request->card
+    );
+
+    $result = $this->makeAdyenRequest($url, $params, true, false);
+
+    return response()->json($result);
   }
 
   private function fakeAddressArray() {
@@ -215,14 +247,14 @@ class AdyenController extends Controller
   }
 
   private function redirPayDet($paymentData, $details) {
-    $service = new \Adyen\Service\Checkout($this->adyenClient);
+    $checkoutService = new \Adyen\Service\Checkout($this->adyenClient);
 
     $params = array(
       'paymentData' => $paymentData,
       'details' => $details
     );
 
-    $result = $service->paymentsDetails($params);
+    $result = $this->makeAdyenRequest("paymentsDetails", $params, false, $checkoutService);
 
     return $result;
   }
@@ -233,5 +265,38 @@ class AdyenController extends Controller
     $params['billingAddress'] = $this->fakeAddressArray();
     $params['lineItems'] = $this->fakeKlarnaLineItems(2);
     $params['shopperName'] = $this->fakeShopperName();
+  }
+
+  private function makeAdyenRequest($methodOrUrl, $params, $isClassic, $service) {
+    if (!$isClassic) {
+      $result = $service->$methodOrUrl($params);
+    } else {
+      //JSON-ify the data for the POST
+      $fields_string = json_encode($params);
+      //Basic auth user
+      $username = "ws_363464@Company.JamieAdyenTest";
+      $password = "}+5k?72wIZSQ6n7Xks^t^3S--";
+
+      //open connection
+      $ch = curl_init();
+      //set the url, number of POST vars, POST data
+      curl_setopt($ch, CURLOPT_URL, $methodOrUrl);
+      curl_setopt($ch, CURLOPT_POST, 1);
+      curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+      curl_setopt($ch, CURLOPT_POSTFIELDS, $fields_string);
+      curl_setopt($ch, CURLOPT_USERPWD, $username . ":" . $password);
+      curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+        'Content-Type: application/json'
+      ));
+
+      //execute post
+      $result = json_decode(curl_exec($ch));
+    }
+
+    return array(
+      "method" => $methodOrUrl,
+      "request" => $params,
+      "response" => $result,
+    );
   }
 }

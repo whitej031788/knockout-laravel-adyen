@@ -37,6 +37,7 @@ export function paymentMethodForm() {
     obj.merchantAccount = this.merchantAccount();
     obj.countryCode = this.countryCode();
     obj.channel = this.channel();
+    obj.shopperReference = this.shopperReference();
 
     return obj;
   }

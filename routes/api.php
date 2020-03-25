@@ -21,8 +21,14 @@ Route::post('/adyen/getPaymentMethods', 'AdyenController@getPaymentMethods');
 
 Route::post('/adyen/classicPayment', 'AdyenController@classicPayment');
 
+Route::post('/adyen/payGiftCard', 'AdyenController@payGiftCard');
+
 Route::post('/adyen/makePaymentSimple', 'AdyenController@makePaymentSimple');
 
 Route::post('/adyen/makePayment3DS2', 'AdyenController@makePayment3DS2');
 
 Route::post('/adyen/paymentDetails', 'AdyenController@paymentDetails');
+
+Route::post('/adyen/signHppHmac', 'AdyenController@signHppHmac');
+
+Route::post('/adyen/capturePayment', 'AdyenController@capturePayment');

@@ -1,4 +1,4 @@
-<form data-bind="submit: submitPaymentMethods">
+<form data-bind="submit: submitPaymentMethods" class="mb-2">
   <div class="form-group" id="paymentMethodForm">
     <label for="merchantAccount">Merchant Account:</label>
     <input type="text" class="form-control" id="merchantAccount" placeholder="Enter merchant account" data-bind="value: paymentMethodForm.merchantAccount" disabled>
@@ -28,5 +28,7 @@
     <input type="text" class="form-control" id="shopperReference" placeholder="Enter shopper reference" data-bind="value: paymentMethodForm.shopperReference">
   </div>
   <div class="col-md-12 text-center alert-danger small mb-2" data-bind="text: paymentMethodForm.error, visible: paymentMethodForm.error"></div>
-  <button type="submit" class="btn btn-primary">Submit</button>
+  <div class="col-md-12">
+    <button type="submit" class="btn btn-primary">Submit</button>
+  </div>
 </form>
