@@ -18,4 +18,26 @@
       </div>
     </div>
   </div>
+  <script>
+  async function onValidateMerchant(resolve, reject, validationURL) {
+    let retObj = {
+      "epochTimestamp": 1585836163761,
+      "expiresAt": 1585839763761,
+      "merchantSessionIdentifier": "SSH77B6....",
+      "nonce": "acee6f45",
+      "merchantIdentifier": "3142363....",
+      "domainName": "https://testpage.com",
+      "displayName": "Test ApplePay Store",
+      "signature": "wri7yfwfr32...."
+    };
+    resolve(retObj);
+  }
+  let myProm = new Promise((function(resolve, reject) {
+    return onValidateMerchant(resolve, reject, 'e.validationURL')
+  })).then((function(e) {
+    console.log(e);
+  })).catch((function(e) {
+    console.error(e);
+  }))
+  </script>
 @endsection

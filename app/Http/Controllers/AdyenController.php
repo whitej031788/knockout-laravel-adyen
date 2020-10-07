@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Input;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class AdyenController extends Controller
 {
@@ -26,46 +28,122 @@ class AdyenController extends Controller
       "merchantAccount" => $request->merchantAccount,
       "countryCode" => $request->countryCode,
       "channel" => $request->channel,
-      "amount" => $request->amount,
-      "shopperReference" => $request->shopperReference
+      'shopperReference' => $request->shopperReference,
+      //"blockedPaymentMethods" => array("paywithgoogle")
     );
 
+    if ($request->has("amount")) {
+      $params['amount'] = $request->amount;
+    }
+
     $result = $this->makeAdyenRequest("paymentMethods", $params, false, $checkoutService);
+
     return response()->json($result);
   }
 
   public function makePaymentSimple(Request $request) {
+    $output = new \Symfony\Component\Console\Output\ConsoleOutput();
+
     $checkoutService = new \Adyen\Service\Checkout($this->adyenClient);
 
-    $paymentMethod = $request->payData['paymentMethod'];
+    // iOS specific!
+    if ($request->has("payData")) {
+      $paymentMethod = $request->payData['paymentMethod'];
+    } else {
+      $paymentMethod = $request->paymentMethod;
+    }
 
     $cacheKeyRedirect = "http://localhost:8000/normal-redirect/" . $request->shopperReference . "-" . $request->reference;
 
+    // For iOS, amount is a delimited stringify
+    if (is_string($request->amount)) {
+      $newAmount = explode(",", $request->amount);
+      $newAmount = array(
+        "value" => $newAmount[0],
+        "currency" => $newAmount[1]
+      );
+    } else {
+      $newAmount = $request->amount;
+    }
+
     $params = array(
-      "amount" => $request->amount,
+      "amount" => $newAmount,
       "reference" => $request->reference,
       "countryCode" => $request->countryCode,
       "paymentMethod" => $paymentMethod,
       "channel" => $request->channel,
+      "shopperEmail" => 'jamie.white@adyen.com',
       "returnUrl" => $cacheKeyRedirect,
       "merchantAccount" => $request->merchantAccount,
-      "shopperReference" => $request->shopperReference
+      "shopperReference" => $request->shopperReference,
+      "billingAddress" => $this->fakeAddressArray(),
+      "shopperInteraction" => "Ecommerce",
+      "deliveryAddress" => $this->fakeAddressArray(),
+      "captureDelayHours" => 2,
+      "merchantOrderReference" => "merchantOrderReference2",
+      "metadata" => array(
+        "test" => "test"
+      ),
     );
 
-    //if (array_key_exists('storePaymentMethod', $request->payData)) {
-      $params['storePaymentMethod'] = true;//$request->payData['storePaymentMethod'];
-      $params['recurringProcessingModel'] = "CardOnFile";
-    //}
+    $output->writeln("Params: " . json_encode($params));
 
-    if (strpos($paymentMethod['type'], 'klarna') !== false) {
+    // Lets check for splits!
+    if ($request->merchantAccount == 'JamieAdyenTestMP') {
+      // Only split if we have amount and account
+      if ($request->has("splitAmount") && $request->has("accountCodeSplit")) {
+        $params['splits'] = array (
+          array (
+            'amount' => array (
+              'value' => $request->splitAmount,
+            ),
+            'type' => 'MarketPlace',
+            'account' => $request->accountCodeSplit,
+            'reference' => '6124145',
+            'description' => 'Porcelain Doll: Eliza (20cm)',
+          ),
+          array (
+            'amount' => array (
+              'value' => intval($request->amount["value"]) - intval($request->splitAmount),
+            ),
+            'type' => 'Commission',
+            'reference' => '6124146',
+          ),
+        );
+      }
+    }
+
+    // Did the front end specify a recur process model?
+    if ($request->has("recurringProcessingModel")) {
+      $params['recurringProcessingModel'] = $request->recurringProcessingModel;
+    }
+
+    if (strtolower($params["channel"]) == "web" && array_key_exists('storePaymentMethod', $request->payData)) {
+      $params['storePaymentMethod'] = $request->payData['storePaymentMethod'];
+    }
+
+    if (isset($paymentMethod['type']) && strpos($paymentMethod['type'], 'klarna') !== false) {
       $this->addKlarnaData($params);
+    }
+
+    if (isset($paymentMethod['type']) && strpos($paymentMethod['type'], 'paypal') !== false) {
+      $params['shopperName'] = $this->fakeShopperName();
     }
 
     $result = $this->makeAdyenRequest("payments", $params, false, $checkoutService);
 
-    if ($result['response']['resultCode'] == 'RedirectShopper') {
-      $cache = Cache::forever($request->shopperReference . '-' . $request->reference, $result['response']['paymentData']);
+    if (array_key_exists("channel", $params) && strtolower($params["channel"]) != "web") {
+      if ($result['resultCode'] == 'RedirectShopper') {
+        $cache = Cache::forever($request->shopperReference . '-' . $request->reference, $result['paymentData']);
+        $result = $result['action'];
+      }
+    } else {
+      if ($result['response']['resultCode'] == 'RedirectShopper') {
+        $cache = Cache::forever($request->shopperReference . '-' . $request->reference, $result['response']['paymentData']);
+      }
     }
+
+    $output->writeln(json_encode($result));
 
     return response()->json($result);
   }
@@ -86,23 +164,34 @@ class AdyenController extends Controller
 
     $params = array(
       "amount" => $request->amount,
-      "reference" => $request->reference,
       "paymentMethod" => $paymentMethod,
-      "returnUrl" => $cacheKeyRedirect,
+      "reference" => $request->reference,
       "merchantAccount" => $request->merchantAccount,
+      "shopperReference" => $request->shopperReference,
+      "additionalData" => array(
+        "allow3DS2" => true,
+        //"customMpiWrapper" => true
+      ),
+      "shopperEmail" => 'jamie.white@adyen.com',
+      "telephoneNumber" => '1234567890',
+      "returnUrl" => $cacheKeyRedirect,
+      "countryCode" => $request->countryCode,
       "channel" => $request->channel,
+      "shopperInteraction" => "Ecommerce",
+      "recurringProcessingModel" => "CardOnFile",
       "origin" => $request->origin,
       "shopperIP" => $_SERVER['REMOTE_ADDR'],
       "billingAddress" => $billingAddress,
       "browserInfo" => $browserInfo,
-      "shopperReference" => $request->shopperReference,
-      "additionalData" => [
-        "allow3DS2" => true
-      ]
+      "threeDSAuthenticationOnly" => $request->threeDSAuthenticationOnly
     );
 
     if (array_key_exists('storePaymentMethod', $request->payData)) {
       $params['storePaymentMethod'] = $request->payData['storePaymentMethod'];
+    }
+
+    if ($request->has("recurringProcessingModel")) {
+      $params['recurringProcessingModel'] = $request->recurringProcessingModel;
     }
 
     $result = $this->makeAdyenRequest("payments", $params, false, $checkoutService);
@@ -140,9 +229,28 @@ class AdyenController extends Controller
   public function signHppHmac(Request $request) {
     //JSON-ify the data for the POST
     $pairs = $request->all();
-    ksort($pairs, SORT_STRING);
+    // Test Klarna
+    // $pairs["openinvoicedata.numberOfLines"] = "2";
+    // $pairs["openinvoicedata.line1.numberOfItems"] = "1";
+    // $pairs["openinvoicedata.line1.itemAmount"] = "3500";
+    // $pairs["openinvoicedata.line1.currencyCode"] = "GBP";
+    // $pairs["openinvoicedata.line1.itemVatAmount"] = "665";
+    // $pairs["openinvoicedata.line1.itemVatPercentage"] = "1900";
+    // $pairs["openinvoicedata.line1.vatCategory"] = "High";
+    // $pairs["openinvoicedata.line1.description"] = "Description 1";
+    // $pairs["openinvoicedata.line2.numberOfItems"] = "1";
+    // $pairs["openinvoicedata.line2.itemAmount"] = "2100";
+    // $pairs["openinvoicedata.line2.currencyCode"] = "GBP";
+    // $pairs["openinvoicedata.line2.itemVatAmount"] = "399";
+    // $pairs["openinvoicedata.line2.itemVatPercentage"] = "1900";
+    // $pairs["openinvoicedata.line2.vatCategory"] = "Low";
+    // $pairs["openinvoicedata.line2.description"] = "Description 2";
+
+
     $HMAC_KEY = "70612EFE64ADF31F3468331815ADDE07FD5A31CF09E54EE50845C1D28ECA980D";
     $escapedPairs = array();
+
+    ksort($pairs, SORT_STRING);
 
     foreach ($pairs as $key => $value) {
       $escapedPairs[$key] = str_replace(':','\\:', str_replace('\\', '\\\\', $value));
@@ -161,7 +269,13 @@ class AdyenController extends Controller
 
   public function threeDSRedirect(Request $request, $payRef) {
     $value = Cache::store('file')->get($payRef);
-    $response = $this->redirPayDet($value, ['MD' => $request->MD, 'PaRes' => $request->PaRes]);
+    //exit();
+    // CUSTOM PAYUZA code
+    // if (isset($request->PayUReference) && $request->PayUReference) {
+    //   $response = $this->redirPayDet($value, ['MD' => $request->PayUReference, 'PaRes' => $request->PayUReference]);
+    // } else {
+      $response = $this->redirPayDet($value, ['MD' => $request->MD, 'PaRes' => $request->PaRes]);
+    // }
 
     return view('redirect-page', ['serverObject' => json_encode($response)]);
   }
@@ -175,18 +289,29 @@ class AdyenController extends Controller
   }
 
   public function classicPayment(Request $request) {
-    $url = 'https://pal-test.adyen.com/pal/servlet/Payment/v51/authorise';
+    $url = 'https://pal-test.adyen.com/pal/servlet/Payment/v52/authorise';
+
+    $billingAddress = $this->fakeAddressArray();
 
     $params = array(
       'reference' => '2378rt3gf4b3',
       'merchantAccount' => 'JamieAdyenTestECOM',
       'amount' => array(
         'value' => 15000,
-        'currency' => 'USD'
+        'currency' => 'ZAR'
       ),
       'additionalData' => array(
-        'card.encrypted.json' => $request->encData
-      )
+        'card.encrypted.json' => $request->encData,
+        "customMpiWrapper" => true
+      ),
+      "shopperEmail" => 'jamie.white@adyen.com',
+      "shopperIP" => $_SERVER['REMOTE_ADDR'],
+      "browserInfo" => array(
+        "userAgent" => "Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9) Gecko/2008052912 Firefox/3.0",
+        "acceptHeader" => "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+      ),
+      "countryCode" => "GB",
+      "billingAddress" => $billingAddress
     );
 
     $result = $this->makeAdyenRequest($url, $params, true, false);
@@ -210,22 +335,71 @@ class AdyenController extends Controller
     return response()->json($result);
   }
 
+  public function getApplePaySession(Request $request) {
+    // This is the server side endpoint that gets called from the onValidateMerchant() JS callback
+    // The session is fetched directly from Apple, and then passed back to the client to render the Apple Pay Sheet
+    // https://developer.apple.com/documentation/apple_pay_on_the_web/applepaysession/1778021-onvalidatemerchant
+
+    // onValidateMerchant() provides validationURL, which should be the only thing passed from the browser to this server side Endpoint
+    // This is where we will make our API call to for the session
+    $theUrl = $request->sessionUrl;
+
+    // This should be the domain Apple Pay is running on, and it needs to be validated with Apple and SSL secured
+    // https://docs.adyen.com/payment-methods/apple-pay/enable-apple-pay#register-merchant-domain
+    $appleValidatedDomain = "ec2-3-10-207-85.eu-west-2.compute.amazonaws.com";
+
+    // POST body
+    // $fields_string = json_encode(array(
+    //   'merchantIdentifier' => "merchant.com.adyen.JamieAdyenTestECOM.test",
+    //   'displayName' => "Jamie's ApplePay Store",
+    //   'initiative' => "web",
+    //   'initiativeContext' => $appleValidatedDomain
+    // ));
+    $fields_string = json_encode(array(
+      'merchantIdentifier' => "merchant.com.adyen.MrAccount123ECOM.test",
+      'displayName' => "Rugby League World Cup England 2021",
+      'initiative' => "web",
+      'initiativeContext' => "uat.tickets.rlwc2021.com"
+    ));
+
+    //open cURL connection
+    $ch = curl_init();
+    //set the url, number of POST vars, POST data
+    curl_setopt($ch, CURLOPT_URL, $theUrl);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $fields_string);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+      'Content-Type: application/json'
+    ));
+
+    // This is how Apple requires authenticating this API call; you must create a merchant identity certificate
+    // Follow steps here https://docs.adyen.com/payment-methods/apple-pay/enable-apple-pay#create-merchant-identity-certificate
+    // Uploaded certificate to your physical web server, and use it to sign your HTTP request
+    curl_setopt($ch, CURLOPT_SSLCERT, Storage::path('tm-pay-cert.pem')); // physical path to .pem file
+
+    //execute post request
+    $result = json_decode(curl_exec($ch));
+
+    // Now we return this Apple Session data to the browser, and onValidateMerchant() will need to resolve() with this session data
+    return response()->json($result);
+  }
+
   private function fakeAddressArray() {
     return [
-      'street' => 'Valley Brook Way',
-      'houseNumberOrName' => '2316',
-      'postalCode' => '30319',
-      'city' => 'Atlanta',
-      'stateOrProvince' => 'GA',
-      'country' => 'US'
+      "city" => "London",
+      "country" => "GB",
+      "houseNumberOrName" => "NA",
+      "postalCode" => "EC1V 9ND",
+      "street" => "165 Old Street"
     ];
   }
 
   private function fakeShopperName() {
     return [
-      'firstName' => 'Main St',
+      'firstName' => 'Jamie',
       'gender' => 'male',
-      'lastName' => 'N1'
+      'lastName' => 'White'
     ];
   }
 
@@ -233,13 +407,13 @@ class AdyenController extends Controller
     $retArr = array();
     for ($x = 0; $x < $numItems; $x++) {
       $tmpArr = array(
-        'quantity' => $x + 1,
-        'amountExcludingTax' => '331',
-        'taxPercentage' => '2100',
+        'quantity' => 3,
+        'amountExcludingTax' => '500',
+        'taxPercentage' => '2000',
         'description' => 'Test Klarna',
         'id' => $x + 100,
-        'taxAmount' => '69',
-        'amountIncludingTax' => '400'
+        'taxAmount' => (500 * 0.2),
+        'amountIncludingTax' => '600'
       );
       array_push($retArr, $tmpArr);
     }
@@ -251,7 +425,8 @@ class AdyenController extends Controller
 
     $params = array(
       'paymentData' => $paymentData,
-      'details' => $details
+      'details' => $details,
+      'threeDSAuthenticationOnly' => false
     );
 
     $result = $this->makeAdyenRequest("paymentsDetails", $params, false, $checkoutService);
@@ -261,15 +436,24 @@ class AdyenController extends Controller
 
   private function addKlarnaData(&$params) {
     $params['shopperLocale'] = 'en_US';
-    $params['shopperEmail'] = 'jamie@adyen.com';
+    $params['shopperEmail'] = 'jamie.white@adyen.com';
+    //$params['telephoneNumber'] = '1234567890';
+    $params['dateOfBirth'] = '2000-12-01';
     $params['billingAddress'] = $this->fakeAddressArray();
-    $params['lineItems'] = $this->fakeKlarnaLineItems(2);
+    $params['lineItems'] = $this->fakeKlarnaLineItems(1);
     $params['shopperName'] = $this->fakeShopperName();
   }
 
   private function makeAdyenRequest($methodOrUrl, $params, $isClassic, $service) {
+    $output = new \Symfony\Component\Console\Output\ConsoleOutput();
+    $output->writeln(json_encode($params));
     if (!$isClassic) {
-      $result = $service->$methodOrUrl($params);
+      try {
+        $result = $service->$methodOrUrl($params);
+        $output->writeln(json_encode($result));
+      } catch (Exception $e) {
+        $output->writeln(json_encode($e));
+      }
     } else {
       //JSON-ify the data for the POST
       $fields_string = json_encode($params);
@@ -293,10 +477,105 @@ class AdyenController extends Controller
       $result = json_decode(curl_exec($ch));
     }
 
+    if (array_key_exists("channel", $params) && strtolower($params["channel"]) != "web") {
+      // For app channels, just return raw result data
+      return $result;
+    } else {
+      //  For web channel, return the helpful POSTMAN style data
+      return array(
+        "method" => $methodOrUrl,
+        "request" => $params,
+        "response" => $result,
+      );
+    }
+  }
+
+  // MARKETPLACE FUNCTIONS
+  private function makeMPRequest($methodOrUrl, $params) {
+    //JSON-ify the data for the POST
+    $fields_string = json_encode($params);
+    //Basic auth user
+    $username = "ws_129289@MarketPlace.JamieAdyenTestMP";
+    $password = "}U_C;YNIyJ%QH5.2PZ}Y*mhCQ";
+
+    //open connection
+    $ch = curl_init();
+    //set the url, number of POST vars, POST data
+    curl_setopt($ch, CURLOPT_URL, $methodOrUrl);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $fields_string);
+    curl_setopt($ch, CURLOPT_USERPWD, $username . ":" . $password);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+      'Content-Type: application/json',
+      'x-api-key: '
+      //'x-api-key: AQE2hmfxLojHaR1Lw0exgG89s9SXSYhIQ7lLVWxT53yym2h/m9RiPfZlpfG4Kc/rWW9csW3S0P+JEMFdWw2+5HzctViMSCJMYAc=-WijLGVB1SJ83xyKHxEc9wNq8wfahobqOm84oULLILHM=-z*sA9t^y_q~_>Y(8'
+    ));
+
+    //execute post
+    $result = json_decode(curl_exec($ch));
+
     return array(
       "method" => $methodOrUrl,
       "request" => $params,
       "response" => $result,
     );
   }
+
+  public function createAccountHolder(Request $request) {
+    $params = $request->all();
+
+    $result = $this->makeMPRequest("https://cal-test.adyen.com/cal/services/Account/v6/createAccountHolder", $params);
+
+    return response()->json($result);
+  }
+
+  public function createNotificationConfiguration(Request $request) {
+    $params = $request->all();
+
+    $result = $this->makeMPRequest("https://cal-test.adyen.com/cal/services/Notification/v6/createNotificationConfiguration", $params);
+
+    return response()->json($result);
+  }
+
+  public function uploadDocument(Request $request) {
+    $params = $request->all();
+
+    $result = $this->makeMPRequest("https://cal-test.adyen.com/cal/services/Account/v6/uploadDocument", $params);
+
+    return response()->json($result);
+  }
+
+  public function getAccountHolder(Request $request) {
+    $params = $request->all();
+
+    $result = $this->makeMPRequest("https://cal-test.adyen.com/cal/services/Account/v6/getAccountHolder", $params);
+
+    return response()->json($result);
+  }
+
+  public function updateAccountHolder(Request $request) {
+    $params = $request->all();
+
+    $result = $this->makeMPRequest("https://cal-test.adyen.com/cal/services/Account/v6/updateAccountHolder", $params);
+
+    return response()->json($result);
+  }
+
+  public function checkAccountHolder(Request $request) {
+    $params = $request->all();
+
+    $result = $this->makeMPRequest("https://cal-test.adyen.com/cal/services/Account/v6/checkAccountHolder", $params);
+
+    return response()->json($result);
+  }
+
+  public function getOnboardingUrl(Request $request) {
+    $params = $request->all();
+
+    $result = $this->makeMPRequest("https://cal-test.adyen.com/cal/services/Hop/v6/getOnboardingUrl", $params);
+
+    return response()->json($result);
+  }
+  // END MARKETPLACE FUNCTIONS
 }

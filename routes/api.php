@@ -32,3 +32,23 @@ Route::post('/adyen/paymentDetails', 'AdyenController@paymentDetails');
 Route::post('/adyen/signHppHmac', 'AdyenController@signHppHmac');
 
 Route::post('/adyen/capturePayment', 'AdyenController@capturePayment');
+
+Route::post('/adyen/applePaySession', 'AdyenController@getApplePaySession');
+
+Route::post('/greggs/generateAndSendLink', 'GreggsController@generateAndSendLink');
+
+Route::post('/greggs/generateAndShowInvoice', 'GreggsController@generateAndShowInvoice');
+
+Route::post('/marketplace/createAccountHolder', 'AdyenController@createAccountHolder');
+
+Route::post('/marketplace/createNotificationConfiguration', 'AdyenController@createNotificationConfiguration');
+
+Route::post('/marketplace/uploadDocument', 'AdyenController@uploadDocument');
+
+Route::post('/marketplace/getAccountHolder', 'AdyenController@getAccountHolder');
+
+Route::post('/marketplace/updateAccountHolder', 'AdyenController@updateAccountHolder');
+
+Route::post('/marketplace/checkAccountHolder', 'AdyenController@checkAccountHolder');
+
+Route::post('/marketplace/getOnboardingUrl', 'AdyenController@getOnboardingUrl');

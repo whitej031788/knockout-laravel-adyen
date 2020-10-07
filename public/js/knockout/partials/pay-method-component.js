@@ -1,8 +1,8 @@
 export function paymentMethodForm() {
   this.merchantAccount = ko.observable('JamieAdyenTestECOM');
-  this.countryCode = ko.observable('US');
-  this.amount = ko.observable(5000);
-  this.currency = ko.observable('USD');
+  this.countryCode = ko.observable('GB');
+  this.amount = ko.observable(2000);
+  this.currency = ko.observable('GBP');
   this.channel = ko.observable('Web');
   this.reference = ko.observable((Math.floor(Math.random() * 10000000).toString()));
   this.shopperReference = ko.observable((Math.floor(Math.random() * 10000000).toString()));

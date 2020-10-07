@@ -1,0 +1,40 @@
+{
+   "additionalData" : {
+      "RequestedTestAcquirerResponseCode" : null,
+      "metadata.merchantIsPci" : "true",
+      "metadata.merchantEnvironment" : "Production",
+      "metadata.merchantClientRef" : "16c65eea-0951-465c-b986-8ee8ae5668bb",
+      "metadata.merchantTenant" : "DotCom",
+      "merchantIntegration.version" : "50",
+      "merchantIntegration.type" : "CHECKOUT_GENERIC"
+   },
+   "amount" : {
+      "currency" : "USD",
+      "value" : 999
+   },
+   "billingAddress" : {
+      "city" : "NA",
+      "country" : "US",
+      "houseNumberOrName" : "",
+      "postalCode" : "30083",
+      "stateOrProvince" : "N\/A",
+      "street" : "NA"
+   },
+   "merchantAccount" : "DingComUS",
+   "recurringProcessingModel" : "CardOnFile",
+   "reference" : "49701120",
+   "selectedBrand" : "visa",
+   "shopperInteraction" : "Ecommerce",
+   "shopperStatement" : "Ding:60981640",
+   "skinCode" : "pub.v2.2615439324222367.GGgO2jYYzjjceZ-CwOULISjSTco3GPRPgMctxY-iBsA",
+   "card" : {
+      "cvc" : "***",
+      "expiryMonth" : "8",
+      "expiryYear" : "2025",
+      "holderName" : "Ro Sang Cung",
+      "number" : "************8085"
+   },
+   "mpiData" : {
+      "directoryResponse" : "Y"
+   }
+}

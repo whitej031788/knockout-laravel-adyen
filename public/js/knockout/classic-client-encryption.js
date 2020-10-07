@@ -34,6 +34,25 @@ function contentsKnockoutObj() {
     });
   }
 
+  this.submitAuthorisation = function(formElement, event) {
+    event.preventDefault();
+
+    let self = this;
+
+    $.ajax({
+      url: '/api/adyen/payGiftCard',
+      dataType: 'json',
+      type: 'post',
+      data: self.formatGiftData(),
+      success: function(data, textStatus, jQxhr) {
+        console.log(data);
+      },
+      error: function(jqXhr, textStatus, errorThrown) {
+        console.log(errorThrown);
+      }
+    });
+  }
+
   this.formatGiftData = function() {
     let obj = {
       amount: {

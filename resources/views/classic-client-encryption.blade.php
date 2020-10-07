@@ -16,13 +16,33 @@
         <input placeholder="Card Number" class="form-control mb-2" type="hidden" value="{{$datetime}}" data-encrypted-name="generationtime"/>
         <input placeholder="Card Number" class="form-control mb-2" type="submit" value="Pay"/>
       </form>
+      <div id="3dcontainer" style="display:none;">
+        <form method="POST" action="" id="3dform">
+          <input type="hidden" name="PaReq" value="" id="PaReq" />
+          <input type="hidden" name="MD" value="" id="MD" />
+          <input type="hidden" name="TermUrl" value="http://localhost:8000/normal-redirect" id="TermUrl" />
+          <br>
+          <br>
+          <div style="text-align: center">
+            <h1>Processing your 3D Secure Transaction</h1>
+            <p>Please click continue to continue the processing of your 3D Secure transaction.</p>
+            <input type="submit" class="button" value="continue"/>
+          </div>
+        </form>
+      </div>
+      <div id="card-type-dom"></div>
       <script>
       // The form element to encrypt.
       var form = document.getElementById('adyen-encrypted-form');
+      var cardTypeDOM = document.getElementById('card-type-dom');
       var encryptedBlobFieldName = "adyenDataEncrypted";
       // See https://github.com/Adyen/CSE-JS/blob/master/Options.md for details on the options to use.
       let options = {};
       options.name = encryptedBlobFieldName;
+      options.cardTypeElement = cardTypeDOM;
+      options.onvalidate = function(e, v) {
+        console.log(e);
+      };
       options.onsubmit = function(e) {
         var encryptedData = form.elements[encryptedBlobFieldName].value;
         // The above is our encrypted card data we can now pass to our payments endpoint
@@ -33,6 +53,12 @@
           data: {'encData': encryptedData},
           success: function(data, textStatus, jQxhr) {
             console.log(data);
+            if (data.response.resultCode == "RedirectShopper") {
+              $('#3dcontainer').show();
+              $('#3dform').attr('action', data.response.issuerUrl);
+              $('#PaReq').val(data.response.paRequest);
+              $('#MD').val(data.response.md);
+            }
           },
           error: function(jqXhr, textStatus, errorThrown) {
             console.log(errorThrown);
@@ -41,7 +67,8 @@
         e.preventDefault();
       };
 
-      adyen.createEncryptedForm(form, options);
+      let encForm = adyen.createEncryptedForm(form, options);
+      encForm.addCardTypeDetection(options.cardTypeElement);
       </script>
     </div>
     <div class="col-md-6 text-center">

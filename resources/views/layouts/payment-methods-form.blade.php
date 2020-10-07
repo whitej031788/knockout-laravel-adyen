@@ -1,7 +1,7 @@
 <form data-bind="submit: submitPaymentMethods" class="mb-2">
   <div class="form-group" id="paymentMethodForm">
     <label for="merchantAccount">Merchant Account:</label>
-    <input type="text" class="form-control" id="merchantAccount" placeholder="Enter merchant account" data-bind="value: paymentMethodForm.merchantAccount" disabled>
+    <input type="text" class="form-control" id="merchantAccount" placeholder="Enter merchant account" data-bind="value: paymentMethodForm.merchantAccount">
   </div>
   <div class="form-group">
     <label for="countryCode">Country Code:</label>
@@ -15,7 +15,7 @@
     <label for="currency">Currency:</label>
     <input maxlength="3" type="text" class="form-control" id="currency" placeholder="Enter currency" data-bind="value: paymentMethodForm.currency" onkeyup="this.value = this.value.toUpperCase();">
   </div>
-  <div class="form-group">
+  <div class="form-group" style="display: none;">
     <label for="channel">Channel:</label>
     <input type="text" class="form-control" id="channel" placeholder="Enter channel" data-bind="value: paymentMethodForm.channel" disabled>
   </div>
@@ -29,6 +29,6 @@
   </div>
   <div class="col-md-12 text-center alert-danger small mb-2" data-bind="text: paymentMethodForm.error, visible: paymentMethodForm.error"></div>
   <div class="col-md-12">
-    <button type="submit" class="btn btn-primary">Submit</button>
+    <button type="submit" class="btn btn-primary" data-toggle="tooltip" data-placement="right" title="Fetch the available payment methods!">Submit</button>
   </div>
 </form>
