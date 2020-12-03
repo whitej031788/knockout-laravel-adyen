@@ -61,8 +61,8 @@ function classicHppKo() {
           ko.cleanNode($('#adyenForm')[0]);
           console.log(self.hppUrl());
           $('#adyenForm').attr('action', self.hppUrl());
-          window.open('', 'formpopup', 'width=400,height=400,resizeable,scrollbars');
-          $('#adyenForm').attr('target', 'formpopup');
+          //window.open('', 'formpopup', 'width=400,height=400,resizeable,scrollbars');
+          //$('#adyenForm').attr('target', 'formpopup');
           $('#adyenForm').submit();
         },
         error: function(jqXhr, textStatus, errorThrown) {

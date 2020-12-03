@@ -6,11 +6,10 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Input;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use \Nexmo\Client;
 
 class GreggsController extends Controller
 {
-  public function generateAndSendLink(Request $request, \Nexmo\Client $nexmo) {
+  public function generateAndSendLink(Request $request) {
     $params = array(
       "amount" => $request->amount,
       "reference" => "GREGGS-" . $request->reference,

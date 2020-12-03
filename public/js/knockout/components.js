@@ -22,7 +22,10 @@ function contentsKnockoutObj() {
   this.pspReference = ko.observable('');
   this.canCapture = ko.observable(false);
   this.threeDSAuthenticationOnly = ko.observable(false);
+  this.tokenizeOnly = ko.observable(false);
   this.paymentData = ko.observable('');
+  this.enableL2Data = ko.observable(false);
+  this.costEstimateComplete = ko.observable(false);
 
   this.splitAmount = ko.observable(0);
   this.accountCodeSplit = ko.observable('');
@@ -42,6 +45,11 @@ function contentsKnockoutObj() {
 
   this.recurringProcessingModel = ko.observable("");
 
+  this.payUZAEFT = function() {
+    self.payMethodData = {paymentMethod: {type: "payu_ZA_eftpro"}};
+    self.submitPayment();
+  }
+
   this.submitPaymentMethods = function() {
     this.havePaymentMethods(false);
 
@@ -50,16 +58,15 @@ function contentsKnockoutObj() {
       self.havePaymentMethods(true);
       self.populatePostman(data);
 
-      console.log(JSON.stringify(self.buildConfig(data.response)));
-
       self.adyenCheckout = new window.AdyenCheckout(self.buildConfig(data.response));
 
       let checkOptions = self.generateDropInConfig();
 
-      console.log(checkOptions);
-
       if (self.dropIn()) {
-        self.dropInObj = self.adyenCheckout.create("dropin", checkOptions).mount("#dropin-container");
+        if (self.dropInObj)
+          self.dropInObj.mount("#dropin-container");
+        else
+          self.dropInObj = self.adyenCheckout.create("dropin", checkOptions).mount("#dropin-container");
       } else {
         self.buildComponents(data.response, checkOptions);
       }
@@ -83,11 +90,8 @@ function contentsKnockoutObj() {
   }
 
   this.buildComponents = function(data, checkOptions) {
-    console.log(checkOptions);
     if (self.isPayMethodSupport(data.paymentMethods, 'scheme')) {
-      checkOptions.brands = ['mc'];
-      let cardComponent = self.adyenCheckout.create("scheme", checkOptions).mount("#card-container");
-      console.log(cardComponent);
+      self.adyenCheckout.create("scheme", checkOptions).mount("#card-container");
     }
 
     if (self.isPayMethodSupport(data.paymentMethods, 'alipay')) {
@@ -123,30 +127,51 @@ function contentsKnockoutObj() {
       applepay.mount('#applepay-container')
     }
 
-    console.log(self.adyenCheckout);
+    if (self.isPayMethodSupport(data.paymentMethods, 'econtext_seven_eleven')) {
+      self.adyenCheckout.create('econtext_seven_eleven').mount('jpseveneleven-container');
+    }
+
+    if (self.isPayMethodSupport(data.paymentMethods, 'econtext_stores')) {
+      self.adyenCheckout.create('econtext_stores').mount('konbini-container');
+    }
 
     if (data.storedPaymentMethods) {
       console.log(JSON.stringify(self.adyenCheckout.paymentMethodsResponse.storedPaymentMethods));
-      self.adyenCheckout.create("card", self.adyenCheckout.paymentMethodsResponse.storedPaymentMethods[0]).mount("#stored-card");
+      //self.adyenCheckout.create("card", self.adyenCheckout.paymentMethodsResponse.storedPaymentMethods[0]).mount("#stored-card");
     }
 
     self.showPayButton(true);
   }
 
+  function mutateNamesWeDontLike(data) {
+    console.log(data);
+    // data represents the /paymentMethods response from the Adyen server
+    // If the payment method "type" is klarna_account, change its name to any custom name to show in Drop-In
+    data.paymentMethods[6].name = "Pay in 3 with Klarna";
+    // Now pass data into the Adyen Drop-In creation
+    return data;
+  }
+
   this.buildConfig = function(data) {
     let self = this;
+
+    //data = mutateNamesWeDontLike(data);
 
     let obj = {
       locale: "en-GB", // The shopper's locale. For a list of supported locales, see https://docs.adyen.com/checkout/components-web/localization-components.
       environment: "test", // When you're ready to accept live payments, change the value to one of our live environments https://docs.adyen.com/checkout/components-web#testing-your-integration.
       //originKey: self.originKey, // Your website's Origin Key. To find out how to generate one, see https://docs.adyen.com/user-management/how-to-get-an-origin-key.
       clientKey: self.clientKey,
-      translations: {'en-GB': {'payButton': "Pay"}},
+      translations: {'en-GB': {'payButton': "Pay", 'confirmPreauthorization': 'Save Card and Sign Up!'}},
       paymentMethodsResponse: data, // The payment methods response returned in step 1.
       onChange: function (state, component) {
         console.log(state);
         if (state.isValid) {
           self.payMethodData = state.data;
+        }
+
+        if (state.data.paymentMethod && state.data.paymentMethod.encryptedCardNumber && !self.costEstimateComplete()) {
+          self.doCostEstimate(state.data.paymentMethod.encryptedCardNumber);
         }
       },
       onAdditionalDetails: function (state, component) {
@@ -169,12 +194,23 @@ function contentsKnockoutObj() {
     return obj;
   }
 
+  this.changeTokenOnly = function(obj, event) {
+    if (obj.tokenizeOnly()) {
+      this.paymentMethodForm.amount(0);
+      this.submitPaymentMethods();
+    }
+  }
+
   this.isPayMethodSupport = function(payMethods, type) {
     var result = payMethods.filter(obj => {
       return obj.type === type
     });
 
-    return result.length > 0;
+    if (type != 'scheme' && this.tokenizeOnly()) {
+      return false;
+    } else {
+      return result.length > 0;
+    }
   }
 
   this.hidePaymentSubmit = function() {
@@ -183,9 +219,11 @@ function contentsKnockoutObj() {
 
   this.submitPayment = function(component) {
     let self = this;
-    self.myComponent = component;
+    if (component) {
+      self.myComponent = component;
+    }
 
-    if (parseInt(this.splitAmount()) >= parseInt(this.paymentMethodForm.amount())) {
+    if (parseInt(this.splitAmount()) > parseInt(this.paymentMethodForm.amount())) {
       alert("Split can't be greater than amount!");
       return;
     }
@@ -203,12 +241,11 @@ function contentsKnockoutObj() {
           self.paymentData(data.action.paymentData);
         }
 
-        //paypal.Buttons.instances[0].close();
-
         if (data.resultCode && data.resultCode == "Authorised") {
           $('#successModal').modal('toggle');
           self.pspReference(data.pspReference);
           self.canCapture(true);
+          self.adyenCheckout.create('donation', self.generateDonationConfig()).mount('#donation-container');
         }
 
         if (data.action && data.action.type && (data.action.type == 'threeDS2Fingerprint' || data.action.type == 'threeDS2Challenge')) {
@@ -219,6 +256,8 @@ function contentsKnockoutObj() {
           $('#redirectModal').modal('toggle');
         } else if (data.action && data.action.type && data.action.type == 'sdk') {
           self.dropInObj.handleAction(data.action).mount('#action-container');
+        } else if (data.action && data.action.type && data.action.type == 'voucher') {
+          self.adyenCheckout.createFromAction(data.action).mount('#action-container');
         } else if (data.action && data.action.type && data.action.type == 'qrCode' && data.action.paymentMethodType == "klarna") {
           // KLARNA WIDGET
           let klarnaToken = data.redirect.data["klarnapayments.client_token"];
@@ -312,6 +351,63 @@ function contentsKnockoutObj() {
     });
   }
 
+  this.submitDonation = function(amount) {
+    let self = this;
+
+    $.ajax({
+      url: '/api/adyen/submitDonation',
+      dataType: 'json',
+      type: 'post',
+      data: self.donationJson(amount),
+      success: function(retData, textStatus, jQxhr) {
+        self.populatePostman(retData);
+        alert("Thank you for your donation to Macmillan Cancer Support!");
+      },
+      error: function(jqXhr, textStatus, errorThrown) {
+        console.log(errorThrown);
+      }
+    });
+  }
+
+  this.donationJson = function(amount) {
+    let obj = {};
+    obj.modificationAmount = amount;
+    obj.reference = this.paymentMethodForm.reference();
+    obj.merchantAccount = this.paymentMethodForm.merchantAccount();
+    obj.originalReference = this.pspReference();
+    obj.donationAccount = "AdyenGivingDemo";
+    return obj;
+  }
+
+  this.doCostEstimate = function(encCard) {
+    let self = this;
+    this.costEstimateComplete(true);
+
+    $.ajax({
+      url: '/api/adyen/doCostEstimate',
+      dataType: 'json',
+      type: 'post',
+      data: self.costEstimateJson(encCard),
+      success: function(retData, textStatus, jQxhr) {
+        self.populatePostman(retData);
+        alert("Cost Estimate API has been run, please check the results on the left and modify your payment request accordingly");
+      },
+      error: function(jqXhr, textStatus, errorThrown) {
+        console.log(errorThrown);
+      }
+    });
+  }
+
+  this.costEstimateJson = function(encCard) {
+    let obj = {};
+    obj.amount = {};
+    obj.amount.value = parseInt(this.paymentMethodForm.amount());
+    obj.amount.currency = this.paymentMethodForm.currency();
+    obj.encryptedCardNumber = encCard;
+    obj.merchantAccount = this.paymentMethodForm.merchantAccount();
+    return obj;
+  }
+
   this.paymentJson = function(threeds) {
     let obj = {};
 
@@ -345,6 +441,8 @@ function contentsKnockoutObj() {
         obj.accountCodeSplit = this.accountCodeSplit();
       }
     }
+
+    obj.enableL2Data = this.enableL2Data();
 
     return obj;
   }
@@ -381,6 +479,12 @@ function contentsKnockoutObj() {
     let obj = {
       paymentMethodsConfiguration: {
         card: {
+          onBrand: function(e) {
+            console.log(e);
+          },
+          onBinValue: function(e) {
+            console.log(e);
+          }
         }
       }
     };
@@ -392,19 +496,39 @@ function contentsKnockoutObj() {
         obj.paymentMethodsConfiguration.card.billingAddressRequired = true;
       }
     }
-    obj.paymentMethodsConfiguration.card.enableStoreDetails = this.enableStoreDetails();
+    obj.paymentMethodsConfiguration.card.enableStoreDetails = this.enableStoreDetails() && !this.tokenizeOnly();
     obj.paymentMethodsConfiguration.paywithgoogle = this.gPayConfig();
     obj.paymentMethodsConfiguration.applepay = this.applePayConfig();
     obj.paymentMethodsConfiguration.paypal = this.paypalConfig();
     obj.showPayButton = self.showPayButton();
     obj.amount = {value: self.paymentMethodForm.amount(), currency: self.paymentMethodForm.currency()};
+
     obj.onError = function(error) {
       console.log(error);
-    },
-    obj.onBrand = function(e) {
-      console.log(e);
     }
 
+    return obj;
+  }
+
+  this.generateDonationConfig = function() {
+    let obj = {
+      amounts: {
+        currency: this.paymentMethodForm.currency(),
+        values: [300, 500, 1000]
+      },
+      backgroundUrl: "https://cdn.macmillan.org.uk/dfsmedia/1a6f23537f7f4519bb0cf14c45b2a629/459-50035/information-and-support-homepage-ambient-video-thumbnail",
+      description: "Macmillan Cancer Support is committed to improving the lives of everyone affected by cancer and inspiring others to do the same.",
+      logoUrl: "https://cdn.macmillan.org.uk/cancer-information-and-support/-/media/project/macmillan/shared/macmillan-logo.svg",
+      name: "Macmillan Cancer Support",
+      url: "https://www.macmillan.org.uk/",
+      showCancelButton: true,
+      onDonate: function(state, component) {
+        self.submitDonation(state.data.amount);
+      },
+      onCancel: function(state, component) {
+        console.log(state);
+      }
+    }
     return obj;
   }
 
@@ -420,7 +544,7 @@ function contentsKnockoutObj() {
         //merchantIdentifier: "12345678910111213141", // Required for PRODUCTION. Remove this object in TEST. Your Google Merchant ID as described in https://developers.google.com/pay/api/web/guides/test-and-deploy/deploy-production-environment#obtain-your-merchantID
         merchantName: "Jamie Gpay Test" // Optional. The name that appears in the payment sheet.
       },
-      onSubmit: self.adyenCheckout.options.onSubmit
+      buttonColor: "white" //Optional. Use a white Google Pay button.
     }
     return obj;
   }

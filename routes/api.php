@@ -25,6 +25,10 @@ Route::post('/adyen/payGiftCard', 'AdyenController@payGiftCard');
 
 Route::post('/adyen/makePaymentSimple', 'AdyenController@makePaymentSimple');
 
+Route::post('/adyen/doCostEstimate', 'AdyenController@doCostEstimate');
+
+Route::post('/adyen/submitDonation', 'AdyenController@submitDonation');
+
 Route::post('/adyen/makePayment3DS2', 'AdyenController@makePayment3DS2');
 
 Route::post('/adyen/paymentDetails', 'AdyenController@paymentDetails');

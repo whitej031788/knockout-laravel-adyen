@@ -10,6 +10,9 @@
       <p>Many Adyen payment methods redirect the shopper away, and then eventually redirect them back.
        At this point, we need to check the paymentData and details</p>
        <h4 data-bind="text: apiUrlOrMethod"></h4>
+       <div class="col-md-12 back-white" data-bind="if: postBack">
+         <pre data-bind="html: postBack"></pre>
+       </div>
        <div class="col-md-12 back-white">
          <pre data-bind="html: apiRequest"></pre>
        </div>

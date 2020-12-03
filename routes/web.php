@@ -76,8 +76,18 @@ Route::get('/copysite', function () {
   return view('menso');
 });
 
+Route::get('/simple-card', function () {
+  return view('simple-card');
+});
+
+Route::get('/peter-imp', function () {
+  return view('peter-imp');
+});
+
 Route::post('/threeds-redirect/{payRef}', 'AdyenController@threeDSRedirect');
 
 Route::get('/threeds-redirect/{payRef}', 'AdyenController@threeDSRedirect');
 
 Route::get('/normal-redirect/{payRef}', 'AdyenController@normalRedirect');
+
+Route::post('/normal-redirect/{payRef}', 'AdyenController@normalRedirect');

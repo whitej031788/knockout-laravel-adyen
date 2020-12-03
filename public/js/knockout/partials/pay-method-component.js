@@ -5,6 +5,7 @@ export function paymentMethodForm() {
   this.currency = ko.observable('GBP');
   this.channel = ko.observable('Web');
   this.reference = ko.observable((Math.floor(Math.random() * 10000000).toString()));
+  //this.shopperReference = ko.observable(7802258);
   this.shopperReference = ko.observable((Math.floor(Math.random() * 10000000).toString()));
   this.error = ko.observable('');
 
@@ -32,8 +33,8 @@ export function paymentMethodForm() {
     let obj = {};
 
     obj.amount = {};
-    obj.amount.value = parseInt(this.amount());
-    obj.amount.currency = this.currency();
+    // obj.amount.value = parseInt(this.amount());
+    // obj.amount.currency = this.currency();
     obj.merchantAccount = this.merchantAccount();
     obj.countryCode = this.countryCode();
     obj.channel = this.channel();

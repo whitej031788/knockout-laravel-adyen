@@ -17,8 +17,7 @@
     crossorigin="anonymous"> --}}
     <link rel="stylesheet"
         type="text/css"
-        href="https://checkoutshopper-test.adyen.com/checkoutshopper/sdk/3.11.4/adyen.css"
-        integrity="sha384-gTrHdtmLDTaHuDUKM1okZAVgBTwjiI+E66Tz3K71+10Lhd7zxvtUF5lrHc35cNIR"
+        href="https://checkoutshopper-test.adyen.com/checkoutshopper/sdk/3.18.2/adyen.css"
         crossorigin="anonymous">
     <!-- Adyen provides the SRI hash that you include as the integrity attribute. Refer to our release notes to get the SRI hash for the specific version. https://docs.adyen.com/checkout/release-notes -->
 
@@ -68,20 +67,9 @@
       @yield('content')
     </div>
     <script src="https://pay.google.com/gp/p/js/pay.js"></script>
-    {{-- <script src="https://checkoutshopper-test.adyen.com/checkoutshopper/sdk/3.11.4/adyen.js"
-    integrity="sha384-r6VzatKWD1SDwT5pfnl6sfkNJYAsTAUlUOO6PEbIhMwWFkPrE28R/8cjAKBp9yCd"
-    crossorigin="anonymous"></script> --}}
-    <script src="https://checkoutshopper-test.adyen.com/checkoutshopper/sdk/3.11.4/adyen.js"
-         integrity="sha384-r6VzatKWD1SDwT5pfnl6sfkNJYAsTAUlUOO6PEbIhMwWFkPrE28R/8cjAKBp9yCd"
-         crossorigin="anonymous"></script>
-    <!-- Adyen provides the SRI hash that you include as the integrity attribute. Refer to our release notes to get the SRI hash for the specific version. https://docs.adyen.com/checkout/release-notes -->
 
-  {{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js"></script> --}}
-  {{-- <script>
-  require(["https://checkoutshopper-test.adyen.com/checkoutshopper/sdk/3.7.0/adyen.js"], function(AdyenCheckout) {
-    window.AdyenCheckout = AdyenCheckout;
-  });
-  </script> --}}
+    <script src="https://checkoutshopper-test.adyen.com/checkoutshopper/sdk/3.18.2/adyen.js"
+         crossorigin="anonymous"></script>
 
     <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>

@@ -11,7 +11,7 @@
   <div class="row see-through mild-opacity mt-3">
     <div class="col-md-6 offset-md-3">
       <h3 class="text-center">Adyen Classic HPP</h3>
-      <form method="post" data-bind="submit: submitHppStuff, attr: {action: hppUrl}" id="adyenForm" name="adyenForm" target="_parent" class="form">
+      <form method="post" data-bind="submit: submitHppStuff, attr: {action: hppUrl}" id="adyenForm" name="adyenForm" class="form">
         <div class="form-group" id="hppSubmitForm">
           <label for="merchantAccount">Merchant Account:</label>
           <input type="text" name="merchantAccount" class="form-control" id="merchantAccount" placeholder="Enter merchant account" data-bind="value: merchantAccount">
@@ -64,7 +64,7 @@
         <input type="hidden" id="merchantSig" name="merchantSig" data-bind="value: merchantSig" />
         <div class="col-md-12 text-center alert-danger small mb-2" data-bind="text: error, visible: error"></div>
         <button type="submit" class="btn btn-primary">Submit</button>
-        <iframe name="output_frame" src="" id="output_frame" width="500" height="500"></iframe>
+        {{-- <iframe name="output_frame" src="" id="output_frame" width="500" height="500"></iframe> --}}
       </form>
     </div>
   </div>

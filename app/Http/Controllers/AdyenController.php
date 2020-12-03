@@ -29,7 +29,7 @@ class AdyenController extends Controller
       "countryCode" => $request->countryCode,
       "channel" => $request->channel,
       'shopperReference' => $request->shopperReference,
-      //"blockedPaymentMethods" => array("paywithgoogle")
+      // "blockedPaymentMethods" => array("visa","mc","amex","cup","jcb","discover","girocard")
     );
 
     if ($request->has("amount")) {
@@ -37,6 +37,26 @@ class AdyenController extends Controller
     }
 
     $result = $this->makeAdyenRequest("paymentMethods", $params, false, $checkoutService);
+
+    return response()->json($result);
+  }
+
+  public function doCostEstimate(Request $request) {
+    $params = $request->all();
+
+    $url = "https://pal-test.adyen.com/pal/servlet/BinLookup/v50/getCostEstimate";
+
+    $result = $this->makeAdyenRequest($url, $params, true, false);
+
+    return response()->json($result);
+  }
+
+  public function submitDonation(Request $request) {
+    $params = $request->all();
+
+    $url = "https://pal-test.adyen.com/pal/servlet/Payment/v64/donate";
+
+    $result = $this->makeAdyenRequest($url, $params, true, false);
 
     return response()->json($result);
   }
@@ -76,17 +96,11 @@ class AdyenController extends Controller
       "returnUrl" => $cacheKeyRedirect,
       "merchantAccount" => $request->merchantAccount,
       "shopperReference" => $request->shopperReference,
-      "billingAddress" => $this->fakeAddressArray(),
       "shopperInteraction" => "Ecommerce",
+      "billingAddress" => $this->fakeAddressArray(),
       "deliveryAddress" => $this->fakeAddressArray(),
-      "captureDelayHours" => 2,
-      "merchantOrderReference" => "merchantOrderReference2",
-      "metadata" => array(
-        "test" => "test"
-      ),
+      "captureDelayHours" => 2
     );
-
-    $output->writeln("Params: " . json_encode($params));
 
     // Lets check for splits!
     if ($request->merchantAccount == 'JamieAdyenTestMP') {
@@ -113,6 +127,10 @@ class AdyenController extends Controller
       }
     }
 
+    if ($request->enableL2Data) {
+      $this->addL2Data($params);
+    }
+
     // Did the front end specify a recur process model?
     if ($request->has("recurringProcessingModel")) {
       $params['recurringProcessingModel'] = $request->recurringProcessingModel;
@@ -122,12 +140,29 @@ class AdyenController extends Controller
       $params['storePaymentMethod'] = $request->payData['storePaymentMethod'];
     }
 
-    if (isset($paymentMethod['type']) && strpos($paymentMethod['type'], 'klarna') !== false) {
+    if (isset($paymentMethod['type']) && (strpos($paymentMethod['type'], 'klarna') !== false || strpos($paymentMethod['type'], 'clearpay') !== false)) {
       $this->addKlarnaData($params);
+    }
+
+    // one click purchase, set ContAuth and CardOnFile
+    if (isset($paymentMethod['storedPaymentMethodId']) && is_numeric($paymentMethod['storedPaymentMethodId'])) {
+      $params['shopperInteraction'] = "ContAuth";
+      $params['recurringProcessingModel'] = "CardOnFile";
     }
 
     if (isset($paymentMethod['type']) && strpos($paymentMethod['type'], 'paypal') !== false) {
       $params['shopperName'] = $this->fakeShopperName();
+    }
+
+    if (isset($paymentMethod['type']) && strpos($paymentMethod['type'], 'ideal') !== false) {
+      $params['storePaymentMethod'] = true;
+    }
+
+    // konbini
+    if (isset($paymentMethod['type']) && strpos($paymentMethod['type'], 'econtext_stores') !== false) {
+      $params['shopperName'] = $this->fakeShopperName();
+      $params['telephoneNumber'] = $paymentMethod['telephoneNumber'];
+      $params['shopperLocale'] = 'ja-JP';
     }
 
     $result = $this->makeAdyenRequest("payments", $params, false, $checkoutService);
@@ -169,8 +204,7 @@ class AdyenController extends Controller
       "merchantAccount" => $request->merchantAccount,
       "shopperReference" => $request->shopperReference,
       "additionalData" => array(
-        "allow3DS2" => true,
-        //"customMpiWrapper" => true
+        "allow3DS2" => true
       ),
       "shopperEmail" => 'jamie.white@adyen.com',
       "telephoneNumber" => '1234567890',
@@ -178,7 +212,6 @@ class AdyenController extends Controller
       "countryCode" => $request->countryCode,
       "channel" => $request->channel,
       "shopperInteraction" => "Ecommerce",
-      "recurringProcessingModel" => "CardOnFile",
       "origin" => $request->origin,
       "shopperIP" => $_SERVER['REMOTE_ADDR'],
       "billingAddress" => $billingAddress,
@@ -280,12 +313,50 @@ class AdyenController extends Controller
     return view('redirect-page', ['serverObject' => json_encode($response)]);
   }
 
-  public function normalRedirect($payRef) {
-    $value = Cache::store('file')->get($payRef);
-    $input = Input::all();
-    $response = $this->redirPayDet($value, $input);
+  public function normalRedirect(Request $request, $payRef) {
+    // 12345 is a cheeky way to identify PayPal ECS; we don't need payment data for it, its classic API
+    if ($payRef == "12345") {
+      $postback = $request->all();
 
-    return view('redirect-page', ['serverObject' => json_encode($response)]);
+      $url = 'https://pal-test.adyen.com/pal/servlet/Payment/v52/authorise';
+
+      $params = array(
+        'reference' => '2378rt3gf4b3',
+        'merchantAccount' => 'JamieAdyenTestECOM',
+        'amount' => array(
+          'value' => 15000,
+          'currency' => 'GBP'
+        ),
+        'additionalData' => array(
+          'payment.token' => $postback["payment_token"]
+        ),
+        "selectedBrand" => "paypal_ecs",
+        "shopperEmail" => 'jamie.white@adyen.com',
+        "shopperIP" => $_SERVER['REMOTE_ADDR'],
+        "browserInfo" => array(
+          "userAgent" => "Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9) Gecko/2008052912 Firefox/3.0",
+          "acceptHeader" => "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+        ),
+        "countryCode" => "GB"
+      );
+
+      $result = $this->makeAdyenRequest($url, $params, true, false);
+
+      $viewObj = array(
+        "method" => "paypal_ecs",
+        "postback" => $postback,
+        "request" => $result["request"],
+        "response" => $result["response"]
+      );
+
+      return view('redirect-page', ['serverObject' => json_encode($viewObj)]);
+    } else {
+      $value = Cache::store('file')->get($payRef);
+      $input = Input::all();
+      $response = $this->redirPayDet($value, $input);
+
+      return view('redirect-page', ['serverObject' => json_encode($response)]);
+    }
   }
 
   public function classicPayment(Request $request) {
@@ -389,7 +460,7 @@ class AdyenController extends Controller
     return [
       "city" => "London",
       "country" => "GB",
-      "houseNumberOrName" => "NA",
+      "houseNumberOrName" => "",
       "postalCode" => "EC1V 9ND",
       "street" => "165 Old Street"
     ];
@@ -410,13 +481,14 @@ class AdyenController extends Controller
         'quantity' => 3,
         'amountExcludingTax' => '500',
         'taxPercentage' => '2000',
-        'description' => 'Test Klarna',
+        'description' => 'Gold Vermeil Fine Chain 24"/61cm with adjuster',
         'id' => $x + 100,
         'taxAmount' => (500 * 0.2),
         'amountIncludingTax' => '600'
       );
       array_push($retArr, $tmpArr);
     }
+
     return $retArr;
   }
 
@@ -442,6 +514,47 @@ class AdyenController extends Controller
     $params['billingAddress'] = $this->fakeAddressArray();
     $params['lineItems'] = $this->fakeKlarnaLineItems(1);
     $params['shopperName'] = $this->fakeShopperName();
+  }
+
+  private function addL2Data(&$params) {
+    // Only create if doesn't exist, otherwise we will overwrite it
+    if (!array_key_exists('additionalData', $params)) {
+      $params['additionalData'] = array();
+    }
+
+    $params['additionalData']["enhancedSchemeData.totalTaxAmount"] = "24000";
+    $params['additionalData']["enhancedSchemeData.customerReference"] = "101";
+    $params['additionalData']["enhancedSchemeData.freightAmount"] = "300";
+    $params['additionalData']["enhancedSchemeData.destinationStateProvinceCode"] = "NYC";
+    $params['additionalData']["enhancedSchemeData.shipFromPostalCode"] = "1082GM";
+    $params['additionalData']["enhancedSchemeData.orderDate"] = "101216";
+    $params['additionalData']["enhancedSchemeData.destinationPostalCode"] = "1082GM";
+    $params['additionalData']["enhancedSchemeData.destinationCountryCode"] = "NLD";
+    $params['additionalData']["enhancedSchemeData.dutyAmount"] = "500";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine1.description"] = "T15 Test products 1";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine1.productCode"] = "TEST120";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine1.commodityCode"] = "COMMCODE1";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine1.quantity"] = "5";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine1.unitOfMeasure"] = "m";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine1.unitPrice"] = "1000";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine1.discount"] = "60";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine1.totalAmount"] = "4940";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine2.description"] = "T15 Test products 2";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine2.productCode"] = "TEST120";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine2.commodityCode"] = "COMMCODE2";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine2.quantity"] = "5";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine2.unitOfMeasure"] = "m";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine2.unitPrice"] = "1000";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine2.discount"] = "60";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine2.totalAmount"] = "4940";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine3.description"] = "T15 Test products 3";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine3.quantity"] = "5";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine3.productCode"] = "TEST120";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine3.commodityCode"] = "COMMCODE3";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine3.unitOfMeasure"] = "m";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine3.unitPrice"] = "1000";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine3.discount"] = "60";
+    $params['additionalData']["enhancedSchemeData.itemDetailLine3.totalAmount"] = "4940";
   }
 
   private function makeAdyenRequest($methodOrUrl, $params, $isClassic, $service) {

@@ -21,11 +21,14 @@ function knockoutObj() {
 
     return json;
   }
-  
+
   this.payReqObj = bladeJsonObj;
   this.apiUrlOrMethod = ko.observable(this.payReqObj.method);
   this.apiRequest = ko.observable(this.jsonPrettyHighlightToId(this.payReqObj.request));
   this.apiResponse = ko.observable(this.jsonPrettyHighlightToId(this.payReqObj.response));
+  if (this.payReqObj.postback) {
+    this.postBack = ko.observable(this.jsonPrettyHighlightToId(this.payReqObj.postback));
+  }
 }
 
 ko.applyBindings(new knockoutObj());
