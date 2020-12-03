@@ -11,7 +11,7 @@ class AdyenController extends Controller
 {
   public function __construct() {
     $this->adyenClient = new \Adyen\Client();
-    $this->adyenClient->setXApiKey('AQEwhmfxLIzNbxNGw0m/n3Q5qf3VYopABJZrXHxTyEyujXLnN3P8LZwpAybFGzQ5dnT1EMFdWw2+5HzctViMSCJMYAc=-ZVuvWaNaFv5m/BktXaTMLvgclIBOr0TecHuSSdQeI5A=-k3a4zKNGsyqD9WJx');
+    $this->adyenClient->setXApiKey(\Config::get('adyen.apiKey'));
     $this->adyenClient->setEnvironment(\Adyen\Environment::TEST);
   }
 
@@ -571,8 +571,8 @@ class AdyenController extends Controller
       //JSON-ify the data for the POST
       $fields_string = json_encode($params);
       //Basic auth user
-      $username = "ws_363464@Company.JamieAdyenTest";
-      $password = "}+5k?72wIZSQ6n7Xks^t^3S--";
+      $username = \Config::get('adyen.username');
+      $password = \Config::get('adyen.password');
 
       //open connection
       $ch = curl_init();
