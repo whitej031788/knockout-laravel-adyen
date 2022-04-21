@@ -18,10 +18,15 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
 });
 
 Route::post('/adyen/getPaymentMethods', 'AdyenController@getPaymentMethods');
+Route::post('/adyen/getPaymentSession', 'AdyenController@checkoutApiSessions');
 
 Route::post('/adyen/classicPayment', 'AdyenController@classicPayment');
 
 Route::post('/adyen/payGiftCard', 'AdyenController@payGiftCard');
+
+// Checkout API gift card orders
+Route::post('/adyen/checkBalance', 'AdyenController@checkoutApiCheckBalance');
+Route::post('/adyen/createOrder', 'AdyenController@createOrder');
 
 Route::post('/adyen/makePaymentSimple', 'AdyenController@makePaymentSimple');
 
@@ -56,3 +61,5 @@ Route::post('/marketplace/updateAccountHolder', 'AdyenController@updateAccountHo
 Route::post('/marketplace/checkAccountHolder', 'AdyenController@checkAccountHolder');
 
 Route::post('/marketplace/getOnboardingUrl', 'AdyenController@getOnboardingUrl');
+
+Route::post('/marketplace/getPciQuestionnaireUrl', 'AdyenController@getPciQuestionnaireUrl');

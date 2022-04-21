@@ -45,6 +45,14 @@
             <input type="checkbox" class="form-check-input" id="showPayButton" data-bind="value: showPayButton, checked: showPayButton">
             <label data-toggle="tooltip" data-placement="right" title="Should I show the pay button" class="form-check-label" for="showPayButton">Show Pay Button</label>
           </div>
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="enableCostEstimate" data-bind="value: enableCostEstimate, checked: enableCostEstimate">
+            <label data-toggle="tooltip" data-placement="right" title="Should we run cost estimate?" class="form-check-label" for="enableCostEstimate">Enable Cost Estimate</label>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="enableAirlineData" data-bind="value: enableAirlineData, checked: enableAirlineData">
+            <label data-toggle="tooltip" data-placement="right" title="Should we include airline data?" class="form-check-label" for="enableAirlineData">Enable Airline Data</label>
+          </div>
         </div>
         <div class="col-md-6">
           <div class="form-check">
@@ -63,6 +71,15 @@
             <input type="checkbox" class="custom-control-input" data-bind="value: dropIn, checked: dropIn" id="dropInSwitch">
             <label class="custom-control-label" for="dropInSwitch" data-bind="visible: dropIn()">Drop-In</label>
             <label class="custom-control-label" for="dropInSwitch" data-bind="visible: !dropIn()">Components</label>
+          </div>
+          <div class="custom-control custom-switch">
+            <input type="checkbox" class="custom-control-input" data-bind="value: enableSessions, checked: enableSessions" id="enableSessionsSwitch">
+            <label class="custom-control-label" for="enableSessionsSwitch" data-bind="visible: enableSessions()">Sessions API</label>
+            <label class="custom-control-label" for="enableSessionsSwitch" data-bind="visible: !enableSessions()">Payments API</label>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="enableLodgingData" data-bind="value: enableLodgingData, checked: enableLodgingData">
+            <label data-toggle="tooltip" data-placement="right" title="Should we include lodging data?" class="form-check-label" for="enableLodgingData">Enable Lodging Data</label>
           </div>
         </div>
       </div>
@@ -89,19 +106,49 @@
           </tbody>
         </table>
       </div>
-      <div class="col-md-12" style="display: none;">
-        <label>Recurring Processing Model</label>
-        <select class="form-control mb-2" style="border: 2px solid white;" data-bind="options: recurringProcessingModelOptions, value: recurringProcessingModel">
-        </select>
+      <!-- <div class="col-md-12">
+        <div class="col-md-6 col-sm-12">
+          <label>Recurring Processing Model</label>
+          <select class="form-control mb-2" style="border: 2px solid white;" data-bind="options: recurringProcessingModelOptions, value: recurringProcessingModel">
+          </select>
+        </div>
+        <div class="col-md-6 col-sm-12 mb-1">
+          <label>Delivery Date</label>
+          <input type="date" class="form-control" data-bind="value: deliveryDate" placeholder="Enter delivery date">
+        </div>
+      </div> -->
+      <div data-bind="foreach: splits, css: {'d-none': paymentMethodForm.merchantAccount() != 'JamieAdyenTestMP'}">
+        <button type="button" class="close" aria-label="Close" data-bind="click: $parent.removeSplit">
+          <span aria-hidden="true">&times;</span>
+        </button>
+        <div class="form-group">
+          <label data-bind="attr: { for: 'account' + $index() }">Account Code Split:</label>
+          <input type="text" class="form-control" data-bind="attr: { id: 'account' + $index() }, value: account" placeholder="Enter account code">
+        </div>
+        <div class="form-group">
+          <label data-bind="attr: { for: 'amount' + $index() }">Split Amount:</label>
+          <input type="number" class="form-control" data-bind="attr: { id: 'amount' + $index() }, value: amount" placeholder="Enter split amount">
+        </div>
       </div>
-      <div class="form-group" data-bind="css: {'d-none': paymentMethodForm.merchantAccount() != 'JamieAdyenTestMP'}">
-        <label for="accountCodeSplit">Account Code Split:</label>
-        <input type="text" class="form-control" id="accountCodeSplit" placeholder="Enter account code" data-bind="value: accountCodeSplit">
+      <button type="button" data-bind="css: {'d-none': paymentMethodForm.merchantAccount() != 'JamieAdyenTestMP'}, click: addSplit" class="btn btn-primary mb-2">Add Split</button>
+      <div data-bind="foreach: basketItems">
+        <button type="button" class="close" aria-label="Close" data-bind="click: $parent.removeBasketItem">
+          <span aria-hidden="true">&times;</span>
+        </button>
+        <div class="form-group">
+          <label data-bind="attr: { for: 'productTitle' + $index() }">Product Name:</label>
+          <input type="text" class="form-control" data-bind="attr: { id: 'productTitle' + $index() }, value: productTitle" placeholder="Enter Product Title">
+        </div>
+        <div class="form-group">
+          <label data-bind="attr: { for: 'sku' + $index() }">Product SKU:</label>
+          <input type="text" class="form-control" data-bind="attr: { id: 'sku' + $index() }, value: sku" placeholder="Enter Product SKU">
+        </div>
+        <div class="form-group">
+          <label data-bind="attr: { for: 'quantity' + $index() }">Quantity:</label>
+          <input type="number" class="form-control" data-bind="attr: { id: 'quantity' + $index() }, value: quantity" placeholder="Enter Product Quantity">
+        </div>
       </div>
-      <div class="form-group" data-bind="css: {'d-none': paymentMethodForm.merchantAccount() != 'JamieAdyenTestMP'}">
-        <label for="splitAmount">Split Amount:</label>
-        <input type="number" class="form-control" id="splitAmount" placeholder="Enter split amount" data-bind="value: splitAmount">
-      </div>
+      <button type="button" data-bind="click: addBasketItem" class="btn btn-primary mb-2">Add Basket Item</button>
       <div class="col-md-12">
         <pre class="navy-background" style="color: white; padding: 5px; border-radius: 5px;">const checkout = new AdyenCheckout(configuration);
 const dropin = checkout.create('dropin').mount('#dropin-container');
@@ -117,10 +164,13 @@ const dropin = checkout.create('dropin').mount('#dropin-container');
       <div id="alipay-container" class="col-md-12"></div>
       <div id="action-container" class="col-md-12"></div>
       <div id="sepadirectdebit-container" class="col-md-12"></div>
+      <div id="directdebit_GB-container" class="col-md-12"></div>
       <div id="interac-container" class="col-md-12"></div>
-      {{-- <h3>Givex Component</h3>
-      <div id="givex-container" class="col-md-12" style="border: 1px solid white; background-color: grey; padding: 10px;"></div> --}}
+      <h3>Givex Component</h3>
+      <div id="givex-container" class="col-md-12" style="border: 1px solid white; background-color: grey; padding: 10px;"></div>
       <div id="stored-card" class="col-md-12"></div>
+      <div id="clearpay-container" class="col-md-12"></div>
+      <div id="afterpaytouch-container" class="col-md-12"></div>
       <div id="paypal-container" class="col-md-12"></div>
       <div id="applepay-container" class="col-md-12"></div>
       <div id="ideal-container" class="col-md-12"></div>

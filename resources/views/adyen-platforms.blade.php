@@ -2,8 +2,17 @@
 
 @section('content')
   <div class="row see-through mild-opacity m-2">
+    <div class="col-md-6 text-center">
+      <input type="text" class="form-control" id="merchantAccount" placeholder="Enter merchant account" data-bind="value: merchantAccount">
+    </div>
+    <div class="col-md-6 text-center">
+      <input type="text" class="form-control" id="verificationProfile" placeholder="Enter verification profile" data-bind="value: verificationProfile">
+    </div>
     <div class="col-md-12 text-center">
       <h2 class="text-center mb-2" style="text-decoration:underline;">Adyen for Platforms</h2>
+    </div>
+    <div class="col-md-8 offset-md-2">
+      <p>The first step in the process is creating the sub-merchant an account on Adyen. This can and should be done as a part of your own sign up process, thus not increasing friction at all (Adyen needs minimal information to allow the partner to start processing payments)</p>
     </div>
     <div class="col-md-4">
       <h4>Method / URL</h4>
@@ -56,6 +65,10 @@
             <label for="country">Country:</label>
             <input type="text" maxlength="2" class="form-control" id="country" placeholder="Enter country code" data-bind="value: country" onkeyup="this.value = this.value.toUpperCase();">
           </div>
+          <div class="form-group">
+            <label for="webAddress">Web Address:</label>
+            <input type="text" class="form-control" id="webAddress" placeholder="Enter website" data-bind="value: webAddress">
+          </div>
           <div class="col-md-12">
             <button type="submit" class="btn btn-primary">Submit</button>
           </div>
@@ -64,6 +77,14 @@
       <div class="col-md-12" data-bind="css: {'d-none': currentTab() != 'updateAccount'}">
         <h3 class="mt-3">Update Account</h3>
         <form data-bind="submit: updateAccountHolder">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="createEcomStore" data-bind="value: createEcomStore, checked: createEcomStore">
+            <label data-toggle="tooltip" data-placement="right" title="Create an ECOM store" class="form-check-label" for="createEcomStore">Create an ECOM partner store</label>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="createPosStore" data-bind="value: createPosStore, checked: createPosStore">
+            <label data-toggle="tooltip" data-placement="right" title="Create a POS store" class="form-check-label" for="createPosStore">Create a POS store</label>
+          </div>
           <div class="form-check">
             <input type="checkbox" class="form-check-input" id="createFrontLoad" data-bind="value: createFrontLoad, checked: createFrontLoad">
             <label data-toggle="tooltip" data-placement="right" title="Create account holder with all EID fields" class="form-check-label" for="createFrontLoad">Front Load Create Account Holder</label>
@@ -84,6 +105,9 @@
               </div>
               <div class="col-sm-4">
                 <button type="submit" class="btn btn-primary mt-2" data-bind="click: getOnboardingUrl">Get Onboarding URL</button>
+              </div>
+              <div class="col-sm-4">
+                <button type="submit" class="btn btn-primary mt-2" data-bind="click: getPciQuestionnaireUrl">Get PCI URL</button>
               </div>
             </div>
           </div>
@@ -141,6 +165,10 @@
           <div class="form-group">
             <label for="country">Country:</label>
             <input type="text" maxlength="2" class="form-control" id="country" placeholder="Enter country code" data-bind="value: country" onkeyup="this.value = this.value.toUpperCase();">
+          </div>
+          <div class="form-group">
+            <label for="webAddress">Web Address:</label>
+            <input type="text" class="form-control" id="webAddress" placeholder="Enter website" data-bind="value: webAddress">
           </div>
           <h5>Bank Account Check</h5>
           <hr />

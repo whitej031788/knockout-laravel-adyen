@@ -12,6 +12,7 @@ function contentsKnockoutObj() {
   this.enable3DS2 = ko.observable(false);
   this.populateFakeAddress = ko.observable(true);
   this.dropIn = ko.observable(true);
+  this.enableSessions = ko.observable(false);
   this.havePaymentMethods = ko.observable(false);
   this.enableStoreDetails = ko.observable(true);
   this.apiUrlOrMethod = ko.observable('');
@@ -25,10 +26,35 @@ function contentsKnockoutObj() {
   this.tokenizeOnly = ko.observable(false);
   this.paymentData = ko.observable('');
   this.enableL2Data = ko.observable(false);
+  this.enableCostEstimate = ko.observable(false);
   this.costEstimateComplete = ko.observable(false);
+  this.donationToken = ko.observable();
+  this.giftCardPayment = ko.observable(0);
+  this.orderPsp = ko.observable('');
+  this.orderData = ko.observable('');
+  this.deliveryDate = ko.observable('');
+  this.enableAirlineData = ko.observable(false);
+  this.enableLodgingData = ko.observable(false);
 
-  this.splitAmount = ko.observable(0);
-  this.accountCodeSplit = ko.observable('');
+  this.splits = ko.observableArray([]);
+
+  this.addSplit = function() {
+    self.splits.push({amount: 0, account: ''});
+  }
+
+  this.removeSplit = function(split) {
+    self.splits.remove(split);
+  }
+
+  this.basketItems = ko.observableArray([]);
+
+  this.addBasketItem = function() {
+    self.basketItems.push({productTitle: '', quantity: 1, sku: ''});
+  }
+
+  this.removeBasketItem = function(item) {
+    self.basketItems.remove(item);
+  }
 
   this.diffCardOptions = ko.observableArray([
     {label: "Normal", number: "4988438843884305", expire: "03/30", cvc: "737"},
@@ -53,34 +79,91 @@ function contentsKnockoutObj() {
   this.submitPaymentMethods = function() {
     this.havePaymentMethods(false);
 
-    this.paymentMethodForm.submitMethodRequest()
-    .then(data => {
-      self.havePaymentMethods(true);
-      self.populatePostman(data);
+    let orderObj = null;
 
-      self.adyenCheckout = new window.AdyenCheckout(self.buildConfig(data.response));
+    if (this.orderPsp() && this.orderData()) {
+      orderObj = {
+        orderData: this.orderData(),
+        pspReference: this.orderPsp()
+      };
+    }
 
-      let checkOptions = self.generateDropInConfig();
+    // Use the old /payments API endpoint
+    if (!this.enableSessions()) {
+      this.paymentMethodForm.submitMethodRequest(orderObj)
+      .then(data => {
+        self.havePaymentMethods(true);
+        self.populatePostman(data);
 
-      if (self.dropIn()) {
-        if (self.dropInObj)
-          self.dropInObj.mount("#dropin-container");
-        else
-          self.dropInObj = self.adyenCheckout.create("dropin", checkOptions).mount("#dropin-container");
-      } else {
-        self.buildComponents(data.response, checkOptions);
-      }
-    })
-    .catch(error => {
-      console.log(error);
-    });
+        if (self.adyenCheckout && orderObj) {
+          self.adyenCheckout.update({ paymentMethodsResponse: data.response, order: orderObj, amount:{value:100,currency:'GBP'} });
+        } else {
+          (async function() {
+            //data.response.paymentMethods[9].type = 'giftcard';
+            self.adyenCheckout = await window.AdyenCheckout(self.buildConfig(data.response));
+
+            let checkOptions = self.generateDropInConfig();
+
+            if (self.dropIn()) {
+              if (self.dropInObj) {
+                self.dropInObj("#dropin-container");
+              } else {
+                var element = document.getElementById('dropin-container');
+                self.dropInObj = self.adyenCheckout.create("dropin", checkOptions).mount(element);
+              }
+            } else {
+              self.buildComponents(data.response, checkOptions);
+            }
+          })();
+        }
+      })
+      .catch(error => {
+        console.log(error);
+      });
+    } else {
+      this.paymentMethodForm.submitSessionRequest()
+      .then(data => {
+        self.havePaymentMethods(true);
+        self.populatePostman(data);
+
+        if (self.adyenCheckout && orderObj) {
+          self.adyenCheckout.update({ paymentMethodsResponse: data.response, order: orderObj, amount:{value:100,currency:'GBP'} });
+        } else {
+          (async function() {
+            self.adyenCheckout = await window.AdyenCheckout(self.buildSessionConfig(data.response));
+
+            let checkOptions = self.generateDropInConfig();
+
+            if (self.dropIn()) {
+              if (self.dropInObj) {
+                self.dropInObj("#dropin-container");
+              } else {
+                var element = document.getElementById('dropin-container');
+                self.dropInObj = self.adyenCheckout.create("dropin", checkOptions).mount(element);
+              }
+            } else {
+              self.buildComponents(data.response, checkOptions);
+            }
+          })();
+        }
+      })
+      .catch(error => {
+        console.log(error);
+      });
+    }
   }
 
   this.unmountDropin = function() {
     this.dropInObj.unmount();
-    this.dropInObj.props.amount.value = 3000;
+    console.log(this.dropInObj.props)
+    this.dropInObj.props.showPaymentMethods = true;
     this.dropInObj.remount();
-    console.log()
+  }
+
+  this.testOrderUpdate = function() {
+    //self.adyenCheckout.update();
+    console.log(self.adyenCheckout);
+    self.adyenCheckout.update({ order: {remainingAmount: 500}, amount: {value: 500000, currency: "GBP"}});
   }
 
   this.populatePostman = function(data) {
@@ -91,6 +174,9 @@ function contentsKnockoutObj() {
 
   this.buildComponents = function(data, checkOptions) {
     if (self.isPayMethodSupport(data.paymentMethods, 'scheme')) {
+      checkOptions.onBrand = function(e) {console.log('onBrand', e)};
+      checkOptions.onFieldValid = function(e) {console.log('onFieldValid', e)};
+      checkOptions.onBinValue = function(e) {console.log('onBinValue', e)};
       self.adyenCheckout.create("scheme", checkOptions).mount("#card-container");
     }
 
@@ -106,6 +192,10 @@ function contentsKnockoutObj() {
       self.adyenCheckout.create("sepadirectdebit", checkOptions).mount("#sepadirectdebit-container");
     }
 
+    if (self.isPayMethodSupport(data.paymentMethods, 'directdebit_GB')) {
+      self.adyenCheckout.create("directdebit_GB", checkOptions).mount("#directdebit_GB-container");
+    }
+
     if (self.isPayMethodSupport(data.paymentMethods, 'interac')) {
       self.adyenCheckout.create("interac", checkOptions).mount("#interac-container");
     }
@@ -115,7 +205,7 @@ function contentsKnockoutObj() {
     }
 
     if (self.isPayMethodSupport(data.paymentMethods, 'givex')) {
-      self.adyenCheckout.create("giftcard", {type: 'givex', pinRequired: true, showPayButton: true}).mount("#givex-container");
+      self.adyenCheckout.create("givex", {type: 'givex', pinRequired: false, showPayButton: true}).mount("#givex-container");
     }
 
     if (self.isPayMethodSupport(data.paymentMethods, 'paypal')) {
@@ -127,12 +217,23 @@ function contentsKnockoutObj() {
       applepay.mount('#applepay-container')
     }
 
+    if (self.isPayMethodSupport(data.paymentMethods, 'clearpay')) {
+      self.adyenCheckout.create('clearpay', {
+        translations: {"es-ES": {
+          "continueTo": "Pago!"
+        }}}).mount('#clearpay-container');
+    }
+
+    if (self.isPayMethodSupport(data.paymentMethods, 'afterpaytouch')) {
+      self.adyenCheckout.create('afterpaytouch').mount('#afterpaytouch-container');
+    }
+
     if (self.isPayMethodSupport(data.paymentMethods, 'econtext_seven_eleven')) {
-      self.adyenCheckout.create('econtext_seven_eleven').mount('jpseveneleven-container');
+      self.adyenCheckout.create('econtext_seven_eleven').mount('#jpseveneleven-container');
     }
 
     if (self.isPayMethodSupport(data.paymentMethods, 'econtext_stores')) {
-      self.adyenCheckout.create('econtext_stores').mount('konbini-container');
+      self.adyenCheckout.create('econtext_stores').mount('#konbini-container');
     }
 
     if (data.storedPaymentMethods) {
@@ -152,17 +253,25 @@ function contentsKnockoutObj() {
     return data;
   }
 
+  function addMinutes(date, minutes) {
+    return new Date(date.getTime() + minutes*60000);
+  }
+
   this.buildConfig = function(data) {
     let self = this;
 
     //data = mutateNamesWeDontLike(data);
 
     let obj = {
+      amount: {value: self.paymentMethodForm.amount(), currency: self.paymentMethodForm.currency()},
+      // analytics: {
+      //   enabled: false,
+      //   telemetry: false
+      // },
       locale: "en-GB", // The shopper's locale. For a list of supported locales, see https://docs.adyen.com/checkout/components-web/localization-components.
       environment: "test", // When you're ready to accept live payments, change the value to one of our live environments https://docs.adyen.com/checkout/components-web#testing-your-integration.
       //originKey: self.originKey, // Your website's Origin Key. To find out how to generate one, see https://docs.adyen.com/user-management/how-to-get-an-origin-key.
       clientKey: self.clientKey,
-      translations: {'en-GB': {'payButton': "Pay", 'confirmPreauthorization': 'Save Card and Sign Up!'}},
       paymentMethodsResponse: data, // The payment methods response returned in step 1.
       onChange: function (state, component) {
         console.log(state);
@@ -170,7 +279,7 @@ function contentsKnockoutObj() {
           self.payMethodData = state.data;
         }
 
-        if (state.data.paymentMethod && state.data.paymentMethod.encryptedCardNumber && !self.costEstimateComplete()) {
+        if (state.data.paymentMethod && state.data.paymentMethod.encryptedCardNumber && !self.costEstimateComplete() && self.enableCostEstimate()) {
           self.doCostEstimate(state.data.paymentMethod.encryptedCardNumber);
         }
       },
@@ -179,7 +288,71 @@ function contentsKnockoutObj() {
         state.data.threeDSAuthenticationOnly = self.threeDSAuthenticationOnly();
         self.getPaymentDetails(state.data);
       },
+      onOrderRequest: function (resolve, reject, data) {
+        $.ajax({
+          url: '/api/adyen/createOrder',
+          dataType: 'json',
+          type: 'post',
+          data: {
+            "reference": self.paymentMethodForm.reference(),
+            "amount" : {
+              "value" : parseInt(self.paymentMethodForm.amount()),
+              "currency" : self.paymentMethodForm.currency()
+            },
+            "merchantAccount" : self.paymentMethodForm.merchantAccount(),
+            "expiresAt" : addMinutes(new Date(), 1).toISOString()
+          },
+          success: function(retData, textStatus, jQxhr) {
+            self.populatePostman(retData);
+            self.orderPsp(retData.response.pspReference);
+            self.orderData(retData.response.orderData);
+            resolve(retData.response);
+          },
+          error: function(jqXhr, textStatus, errorThrown) {
+            console.log(errorThrown);
+            reject('oops');
+          }
+        });
+      },
+      onBalanceCheck: function (resolve, reject, data) {
+       // call /paymentMethods/balance
+       if (data.paymentMethod.type = 'giftcard') {
+         data.paymentMethod.type = 'giftcard';
+         data.paymentMethod.brand = 'givex';
+       }
+       $.ajax({
+         url: '/api/adyen/checkBalance',
+         dataType: 'json',
+         type: 'post',
+         data: {
+           "amount" : {
+             "value" : parseInt(self.paymentMethodForm.amount()),
+             "currency" : self.paymentMethodForm.currency()
+           },
+           "merchantAccount" : self.paymentMethodForm.merchantAccount(),
+           "paymentMethod" : data.paymentMethod
+         },
+         success: function(retData, textStatus, jQxhr) {
+           let data = retData.response;
+           self.populatePostman(retData);
+           if (retData.response.resultCode == "NotEnoughBalance") {
+             self.giftCardPayment(retData.response.balance.value);
+           }
+           console.log(JSON.stringify(data));
+           resolve(data);
+         },
+         error: function(jqXhr, textStatus, errorThrown) {
+           console.log(errorThrown);
+           reject('oops');
+         }
+       });
+     },
       onSubmit: function (state, component) {
+        // GIFT CARD HACK
+        if (state.data.paymentMethod.type == 'giftcard') {
+          state.data.paymentMethod.type = 'givex';
+        }
+
         self.payMethodData = state.data;
         self.submitPayment(component);
       },
@@ -188,8 +361,64 @@ function contentsKnockoutObj() {
       },
       onError: function(e) {
         console.log(e);
+      },
+      paymentMethodsConfiguration: {
+        storedCard: {
+          hideCVC: true
+        },
+        card: {
+          name: 'Credit or debit card',
+          onBrand: function(e) {
+            console.log(e);
+          },
+          onBinValue: function(e) {
+            console.log(e);
+          }
+        },
+        givex: {
+          pinRequired: false
+        }
+      }
+    };
+
+    // Require 3DS data if we are enabling it
+    if (this.enable3DS2()) {
+      obj.paymentMethodsConfiguration.card.holderNameRequired = true;
+      obj.paymentMethodsConfiguration.card.hasHolderName = true;
+      if (!this.populateFakeAddress()) {
+        obj.paymentMethodsConfiguration.card.billingAddressRequired = true;
       }
     }
+    obj.paymentMethodsConfiguration.card.enableStoreDetails = this.enableStoreDetails() && !this.tokenizeOnly();
+    // obj.paymentMethodsConfiguration.paywithgoogle = this.gPayConfig();
+    obj.paymentMethodsConfiguration.applepay = this.applePayConfig();
+    obj.paymentMethodsConfiguration.paypal = this.paypalConfig();
+
+    console.log(obj);
+
+    return obj;
+  }
+
+  this.buildSessionConfig = function(data) {
+    let self = this;
+
+    //data = mutateNamesWeDontLike(data);
+
+    let obj = {
+      environment: "test", // When you're ready to accept live payments, change the value to one of our live environments https://docs.adyen.com/checkout/components-web#testing-your-integration.
+      //originKey: self.originKey, // Your website's Origin Key. To find out how to generate one, see https://docs.adyen.com/user-management/how-to-get-an-origin-key.
+      clientKey: self.clientKey + '312',
+      session: {
+        id: data.id, // Unique identifier for the payment session.
+        sessionData: data.sessionData // The payment session data.
+      },
+      onPaymentCompleted: (result, component) => {
+        console.info(result, component);
+      },
+      onError: (error, component) => {
+        console.error(error.name, error.message, error.stack, component);
+      }
+    };
 
     return obj;
   }
@@ -223,11 +452,6 @@ function contentsKnockoutObj() {
       self.myComponent = component;
     }
 
-    if (parseInt(this.splitAmount()) > parseInt(this.paymentMethodForm.amount())) {
-      alert("Split can't be greater than amount!");
-      return;
-    }
-
     $.ajax({
       url: this.enable3DS2() ? '/api/adyen/makePayment3DS2' : '/api/adyen/makePaymentSimple',
       dataType: 'json',
@@ -237,6 +461,24 @@ function contentsKnockoutObj() {
         self.populatePostman(retData);
         let data = retData.response;
 
+        // gift card partial payment shit
+        if (data.order && data.order?.remainingAmount?.value > 0) {
+          console.log('Partial payment');
+          // handle orders
+          const order = {
+              orderData: data.order.orderData,
+              pspReference: data.order.pspReference
+          };
+
+          self.giftCardPayment(data.order?.remainingAmount?.value);
+
+          self.paymentMethodForm.submitMethodRequest(order)
+          .then(orderPaymentMethods => {
+            self.populatePostman(orderPaymentMethods);
+            self.adyenCheckout.update({ paymentMethodsResponse: orderPaymentMethods.response, order, amount: data.order.remainingAmount });
+          });
+        }
+
         if (data.action && data.action.paymentData) {
           self.paymentData(data.action.paymentData);
         }
@@ -245,37 +487,53 @@ function contentsKnockoutObj() {
           $('#successModal').modal('toggle');
           self.pspReference(data.pspReference);
           self.canCapture(true);
-          self.adyenCheckout.create('donation', self.generateDonationConfig()).mount('#donation-container');
+          if (data.donationToken) {
+            self.donationToken(data.donationToken);
+            self.adyenCheckout.create('donation', self.generateDonationConfig()).mount('#donation-container');
+          }
         }
 
-        if (data.action && data.action.type && (data.action.type == 'threeDS2Fingerprint' || data.action.type == 'threeDS2Challenge')) {
+        // close paypal popups
+        if (retData.request.paymentMethod.type == "paypal" && data.resultCode == "Refused") {
+          paypal.Buttons.instances[0].close();
+        }
+
+        if (data.action && data.action.type && (data.action.type == 'threeDS2Fingerprint' || data.action.type == 'threeDS2Challenge' || data.action.type == 'threeDS2')) {
           self.adyenCheckout.createFromAction(data.action).mount('#action-container');
         } else if (data.action && data.action.type && data.action.type == 'redirect') {
           self.redirPrettyPrint(self.jsonPrettyHighlightToId(data.action));
           self.redirectAction = data.action;
           $('#redirectModal').modal('toggle');
         } else if (data.action && data.action.type && data.action.type == 'sdk') {
-          self.dropInObj.handleAction(data.action).mount('#action-container');
+          component.handleAction(data.action).mount('#action-container');
         } else if (data.action && data.action.type && data.action.type == 'voucher') {
           self.adyenCheckout.createFromAction(data.action).mount('#action-container');
-        } else if (data.action && data.action.type && data.action.type == 'qrCode' && data.action.paymentMethodType == "klarna") {
+        } else if (data.action && data.action.type && data.action.type == 'qrCode' && (data.action.paymentMethodType == "klarna" || data.action.paymentMethodType == "klarna_account")) {
           // KLARNA WIDGET
           let klarnaToken = data.redirect.data["klarnapayments.client_token"];
-          console.log(klarnaToken);
+
           Klarna.Payments.init({
             client_token: klarnaToken
           });
 
+          let payCategory = '';
+
+          if (data.action.paymentMethodType == "klarna") {
+            payCategory = 'pay_later';
+          } else if (data.action.paymentMethodType == "klarna_account") {
+            payCategory = 'pay_over_time';
+          }
+
           Klarna.Payments.load({
             container: '#klarna-payments-container',
-            payment_method_category: 'pay_later'
+            payment_method_category: payCategory
           }, function (res) {
             console.debug(res);
           });
 
           setTimeout(function() {
             Klarna.Payments.authorize(
-              {payment_method_category: 'pay_later', auto_finalize: true},
+              {payment_method_category: payCategory, auto_finalize: true},
               {},
               function(res) {
                 console.log(res)
@@ -371,10 +629,15 @@ function contentsKnockoutObj() {
 
   this.donationJson = function(amount) {
     let obj = {};
-    obj.modificationAmount = amount;
+    obj.paymentMethod = {};
+    obj.paymentMethod.type = 'scheme';
+    obj.shopperInteraction = "ContAuth";
+    obj.recurringProcessingModel = "UnscheduledCardOnFile";
+    obj.amount = amount;
     obj.reference = this.paymentMethodForm.reference();
     obj.merchantAccount = this.paymentMethodForm.merchantAccount();
-    obj.originalReference = this.pspReference();
+    obj.donationOriginalPspReference = this.pspReference();
+    obj.donationToken = this.donationToken();
     obj.donationAccount = "AdyenGivingDemo";
     return obj;
   }
@@ -412,7 +675,12 @@ function contentsKnockoutObj() {
     let obj = {};
 
     obj.amount = {};
-    obj.amount.value = parseInt(this.paymentMethodForm.amount());
+    if (this.giftCardPayment() && this.giftCardPayment() != 0) {
+      obj.amount.value = parseInt(this.giftCardPayment());
+      this.giftCardPayment(0);
+    } else {
+      obj.amount.value = parseInt(this.paymentMethodForm.amount());
+    }
     obj.amount.currency = this.paymentMethodForm.currency();
     obj.merchantAccount = this.paymentMethodForm.merchantAccount();
     obj.reference = this.paymentMethodForm.reference();
@@ -436,13 +704,30 @@ function contentsKnockoutObj() {
 
     // Provide Split!
     if (this.paymentMethodForm.merchantAccount() == 'JamieAdyenTestMP') {
-      if (this.splitAmount() && this.accountCodeSplit()) {
-        obj.splitAmount = this.splitAmount();
-        obj.accountCodeSplit = this.accountCodeSplit();
+      if (this.splits().length >= 1) {
+        obj.splits = this.splits();
       }
     }
 
+    if (this.basketItems().length >= 1) {
+      obj.basketItems = this.basketItems();
+    }
+
+    if (this.orderPsp() && this.orderData()) {
+      obj.order = {
+        orderData: this.orderData(),
+        pspReference: this.orderPsp()
+      };
+    }
+
+    if (this.deliveryDate()) {
+      const delivDate = new Date(this.deliveryDate());
+      obj.deliveryDate = delivDate.toISOString();
+    }
+
     obj.enableL2Data = this.enableL2Data();
+    obj.enableAirlineData = this.enableAirlineData();
+    obj.enableLodgingData = this.enableLodgingData();
 
     return obj;
   }
@@ -477,31 +762,39 @@ function contentsKnockoutObj() {
 
   this.generateDropInConfig = function() {
     let obj = {
+      onSelect: function(e) {
+        console.log('onSelect', e);
+      },
       paymentMethodsConfiguration: {
         card: {
+          hideCVC: true,
           onBrand: function(e) {
             console.log(e);
           },
           onBinValue: function(e) {
             console.log(e);
           }
+        },
+        givex: {
+          pinRequired: false
         }
       }
     };
-    // Require 3DS data if we are enabling it
-    if (this.enable3DS2()) {
-      obj.paymentMethodsConfiguration.card.holderNameRequired = true;
-      obj.paymentMethodsConfiguration.card.hasHolderName = true;
-      if (!this.populateFakeAddress()) {
-        obj.paymentMethodsConfiguration.card.billingAddressRequired = true;
-      }
-    }
-    obj.paymentMethodsConfiguration.card.enableStoreDetails = this.enableStoreDetails() && !this.tokenizeOnly();
-    obj.paymentMethodsConfiguration.paywithgoogle = this.gPayConfig();
-    obj.paymentMethodsConfiguration.applepay = this.applePayConfig();
-    obj.paymentMethodsConfiguration.paypal = this.paypalConfig();
-    obj.showPayButton = self.showPayButton();
-    obj.amount = {value: self.paymentMethodForm.amount(), currency: self.paymentMethodForm.currency()};
+
+    // // Require 3DS data if we are enabling it
+    // if (this.enable3DS2()) {
+    //   obj.paymentMethodsConfiguration.card.holderNameRequired = true;
+    //   obj.paymentMethodsConfiguration.card.hasHolderName = true;
+    //   if (!this.populateFakeAddress()) {
+    //     obj.paymentMethodsConfiguration.card.billingAddressRequired = true;
+    //   }
+    // }
+    // obj.paymentMethodsConfiguration.card.enableStoreDetails = this.enableStoreDetails() && !this.tokenizeOnly();
+    // obj.paymentMethodsConfiguration.paywithgoogle = this.gPayConfig();
+    // obj.paymentMethodsConfiguration.applepay = this.applePayConfig();
+    // obj.paymentMethodsConfiguration.paypal = this.paypalConfig();
+    // obj.showPayButton = self.showPayButton();
+    //obj.amount = {value: self.paymentMethodForm.amount(), currency: self.paymentMethodForm.currency()};
 
     obj.onError = function(error) {
       console.log(error);
@@ -539,12 +832,11 @@ function contentsKnockoutObj() {
         currency: this.paymentMethodForm.currency(),
         value: this.paymentMethodForm.amount()
       },
-      configuration: {
-        gatewayMerchantId: this.paymentMethodForm.merchantAccount(), // Your Adyen merchant or company account name
-        //merchantIdentifier: "12345678910111213141", // Required for PRODUCTION. Remove this object in TEST. Your Google Merchant ID as described in https://developers.google.com/pay/api/web/guides/test-and-deploy/deploy-production-environment#obtain-your-merchantID
-        merchantName: "Jamie Gpay Test" // Optional. The name that appears in the payment sheet.
+      onClick: function(resolve, reject) {
+        console.log('ONCLICK');
+        resolve();
       },
-      buttonColor: "white" //Optional. Use a white Google Pay button.
+      allowedAuthMethods: ['PAN_ONLY']
     }
     return obj;
   }
@@ -564,7 +856,10 @@ function contentsKnockoutObj() {
     let self = this;
 
     let obj = { // Required configuration for Apple Pay
-      amount: "5700",
+      amount: {
+        currency: "GBP",
+        value: 1000
+      },
       currencyCode: this.paymentMethodForm.currency(),
       countryCode: this.paymentMethodForm.countryCode(),
       supportedNetworks: ['visa', 'mastercard'],
@@ -635,6 +930,7 @@ function contentsKnockoutObj() {
 
   this.paypalConfig = function() {
     let obj = {
+      showPayButton: true,
       intent: 'authorize',
       merchantId: 'LFVS99UNVDAUJ',
       environment: "test", // Change this to "live" when you're ready to accept live PayPal payments
@@ -644,8 +940,18 @@ function contentsKnockoutObj() {
         value: this.paymentMethodForm.amount()
       },
       onCancel: (data, component) => {
+        console.log(component);
           component.setStatus('ready');
           // Sets your prefered status of the component when a PayPal payment is cancelled. In this example, return to the initial state.
+      },
+      onError: (e) => {
+        console.log('onError paypal', e);
+      },
+      onInit: (e) => {
+        console.log('onInit paypal', e);
+      },
+      onClick: (e) => {
+        console.log('onClick paypal', e);
       }
     };
 

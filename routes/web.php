@@ -15,8 +15,8 @@ Route::get('/', function () {
   return view('home');
 });
 
-Route::get('/checkout/payment', function () {
-  return view('dunelm');
+Route::get('/united-utilities', function () {
+  return view('united-utilities');
 });
 
 Route::get('/components', function () {

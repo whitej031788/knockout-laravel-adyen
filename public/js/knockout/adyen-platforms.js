@@ -9,16 +9,20 @@ function adyenPlatformsKo() {
     "Individual",
     "Business"
   ]);
-  this.legalEntity = ko.observable("Individual");
+  this.legalEntity = ko.observable("Business");
   this.merchantAccount = ko.observable('JamieAdyenTestMP');
+  this.verificationProfile = ko.observable('');
   this.email = ko.observable('jamie.white@adyen.com');
   this.country = ko.observable('GB');
   this.firstName = ko.observable('NameFirst');
   this.lastName = ko.observable('TestData');
   this.accountHolderCode = ko.observable('');
   this.legalBusinessName = ko.observable('TestData');
+  this.webAddress = ko.observable('https://google.com');
   this.gender = ko.observable('UNKNOWN');
   this.createFrontLoad = ko.observable(false);
+  this.createEcomStore = ko.observable(false);
+  this.createPosStore = ko.observable(false);
   // Bank check / Individual / Shareholder / Company Check
   this.houseNumberOrName = ko.observable('10');
   this.street = ko.observable('Hills Place');
@@ -83,6 +87,9 @@ function adyenPlatformsKo() {
               self.populateAccountHolder(retData.response);
               break;
             case "getOnboardingUrl":
+              window.open(retData.response.redirectUrl);
+              break;
+            case "getPciQuestionnaireUrl":
               window.open(retData.response.redirectUrl);
               break;
             default:
@@ -250,6 +257,20 @@ function adyenPlatformsKo() {
     this.platformsApiCall('checkAccountHolder', data, true);
   }
 
+  this.getPciQuestionnaireUrl = function() {
+    if (!this.accountHolderCode()) {
+      alert('Provide account holder code');
+      return;
+    }
+
+    let data = {
+      "accountHolderCode": this.accountHolderCode(),
+      "returnUrl": "https://your.return-url.com/?submerchant=123"
+    }
+
+    this.platformsApiCall('getPciQuestionnaireUrl', data, true);
+  }
+
   this.populateAccountHolder = function(data) {
     this.legalEntity(data.legalEntity);
     this.country(data.accountHolderDetails.address.country);
@@ -295,9 +316,19 @@ function adyenPlatformsKo() {
 
     // If front load is ticked, let's try and create it
     if (this.createFrontLoad()) {
-      var endpoint = 'createAccountHolder';
-      var type = 'create';
-      var frontLoad = true;
+      endpoint = 'createAccountHolder';
+      type = 'create';
+      frontLoad = true;
+    }
+
+    // Is this an ECOM store creation?
+    if (this.createEcomStore()) {
+      type = 'ecom-store-create';
+    }
+
+    // Is this a POS store creation?
+    if (this.createPosStore()) {
+      type = 'pos-store-create';
     }
 
     let data = this.formatAccountHolderJson(this.legalEntity(), frontLoad, type);
@@ -305,7 +336,7 @@ function adyenPlatformsKo() {
     this.platformsApiCall(endpoint, data);
   }
 
-  this.formatAccountHolderJson = function(type, frontLoad, createOrUpdate) {
+  this.formatAccountHolderJson = function(type, frontLoad, createOrUpdateOrStore) {
     // START MINIMAL DATA, FOR AN UPDATE OR A CREATE
     let data = {
        "accountHolderCode": this.accountHolderCode(),
@@ -313,13 +344,23 @@ function adyenPlatformsKo() {
           "address": {
             "country": this.country()
           },
-          "email": this.email()
+          "email": this.email(),
+          "webAddress": this.webAddress(),
+          // "phoneNumber":
+          // {
+          //   "phoneCountryCode": this.country(),
+          //   "phoneNumber": this.fullPhoneNumber(),
+          //   "phoneType": "Mobile"
+          // }
        },
        "legalEntity": type
     };
 
-    if (createOrUpdate == 'create') {
-      data.createDefaultAccount = true;
+    if (createOrUpdateOrStore == 'create') {
+      // data.createDefaultAccount = true;
+      if (this.verificationProfile()) {
+        data.verificationProfile = this.verificationProfile();
+      }
     }
 
     if (type == "Individual") {
@@ -351,13 +392,13 @@ function adyenPlatformsKo() {
 
     // If it is a create and we don't want to front load, then we are done
     // Minimal sign up
-    if (createOrUpdate == 'create' && frontLoad == false) {
+    if (createOrUpdateOrStore == 'create' && frontLoad == false) {
       return data;
-    } else {
+    } else if (createOrUpdateOrStore == 'update' || frontLoad == true) {
       // any other combo means let's load this object up
       // if it is an update, then load it up
       // if it is a create and frontLoad == true, then we want to load it up anyway
-      // data.processingTier = "2";
+      data.processingTier = "1";
       // Agnostic of legalEntityType()
       data.accountHolderDetails.fullPhoneNumber = this.fullPhoneNumber();
       data.accountHolderDetails.address.houseNumberOrName = this.houseNumberOrName();
@@ -420,6 +461,30 @@ function adyenPlatformsKo() {
         if (this.shareholderCode()) {
           data.accountHolderDetails.businessDetails.shareholders[0].shareholderCode = this.shareholderCode();
         }
+      }
+    }
+
+    if (createOrUpdateOrStore == 'ecom-store-create' || createOrUpdateOrStore == 'pos-store-create') {
+      data.accountHolderDetails.storeDetails = [
+        {
+          "fullPhoneNumber": this.fullPhoneNumber(),
+          "merchantAccount": this.merchantAccount(),
+          "merchantCategoryCode": "8999",
+          "storeName": "Store " + this.accountHolderCode(),
+          "storeReference": this.accountHolderCode() + "-store"
+        }
+      ];
+
+      if (createOrUpdateOrStore == 'ecom-store-create') {
+        data.accountHolderDetails.storeDetails[0].shopperInteraction = 'Ecommerce';
+        data.accountHolderDetails.storeDetails[0].webAddress = "https://google.com";
+      } else { // POS
+        data.accountHolderDetails.storeDetails[0].address = {};
+        data.accountHolderDetails.storeDetails[0].address.houseNumberOrName = this.houseNumberOrName();
+        data.accountHolderDetails.storeDetails[0].address.country = this.country();
+        data.accountHolderDetails.storeDetails[0].address.street = this.street();
+        data.accountHolderDetails.storeDetails[0].address.city = this.city();
+        data.accountHolderDetails.storeDetails[0].address.postalCode = this.postalCode();
       }
     }
 

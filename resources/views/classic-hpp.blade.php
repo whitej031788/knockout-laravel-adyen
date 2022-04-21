@@ -29,11 +29,15 @@
           <input maxlength="3" name="currencyCode" type="text" class="form-control" id="currency" placeholder="Enter currency" data-bind="value: currencyCode" onkeyup="this.value = this.value.toUpperCase();">
         </div>
         <div class="form-group">
-          <label for="channel">Reference:</label>
+          <label for="reference">Reference:</label>
           <input type="text" name="merchantReference" class="form-control" id="reference" placeholder="Enter reference" data-bind="value: merchantReference">
         </div>
         <div class="form-group">
-          <label for="channel">Shopper Reference:</label>
+          <label for="shopperLocale">Shopper Locale:</label>
+          <input type="text" name="shopperLocale" class="form-control" id="shopperLocale" placeholder="Enter locale" data-bind="value: shopperLocale">
+        </div>
+        <div class="form-group">
+          <label for="shopperReference">Shopper Reference:</label>
           <input type="text" name="shopperReference" class="form-control" id="shopperReference" placeholder="Enter shopper Reference" data-bind="value: shopperReference">
         </div>
         <div class="form-group">
@@ -61,6 +65,7 @@
         <!-- /ko --> --}}
 
         <input type="hidden" id="sessionValidity" name="sessionValidity" value="{{$datetime}}" />
+        <input type="hidden" id="resURL" name="resURL" data-bind="value: resURL" />
         <input type="hidden" id="merchantSig" name="merchantSig" data-bind="value: merchantSig" />
         <div class="col-md-12 text-center alert-danger small mb-2" data-bind="text: error, visible: error"></div>
         <button type="submit" class="btn btn-primary">Submit</button>

@@ -17,7 +17,7 @@
     crossorigin="anonymous"> --}}
     <link rel="stylesheet"
         type="text/css"
-        href="https://checkoutshopper-test.adyen.com/checkoutshopper/sdk/3.18.2/adyen.css"
+        href="https://checkoutshopper-test.adyen.com/checkoutshopper/sdk/5.0.0/adyen.css"
         crossorigin="anonymous">
     <!-- Adyen provides the SRI hash that you include as the integrity attribute. Refer to our release notes to get the SRI hash for the specific version. https://docs.adyen.com/checkout/release-notes -->
 
@@ -68,7 +68,7 @@
     </div>
     <script src="https://pay.google.com/gp/p/js/pay.js"></script>
 
-    <script src="https://checkoutshopper-test.adyen.com/checkoutshopper/sdk/3.18.2/adyen.js"
+    <script src="https://checkoutshopper-test.adyen.com/checkoutshopper/sdk/5.0.0/adyen.js"
          crossorigin="anonymous"></script>
 
     <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>

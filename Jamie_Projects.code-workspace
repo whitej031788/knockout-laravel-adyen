@@ -1,0 +1,23 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../adyen-demo-project"
+		},
+		{
+			"path": "../node-terminal-api"
+		},
+		{
+			"path": "../adyen-afp-reports"
+		},
+		{
+			"path": "../afp-scripts"
+		},
+		{
+			"path": "../platform"
+		}
+	],
+	"settings": {}
+}

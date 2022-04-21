@@ -26,8 +26,9 @@ function knockoutObj() {
   this.apiUrlOrMethod = ko.observable(this.payReqObj.method);
   this.apiRequest = ko.observable(this.jsonPrettyHighlightToId(this.payReqObj.request));
   this.apiResponse = ko.observable(this.jsonPrettyHighlightToId(this.payReqObj.response));
+  this.postBack = ko.observable(false);
   if (this.payReqObj.postback) {
-    this.postBack = ko.observable(this.jsonPrettyHighlightToId(this.payReqObj.postback));
+    this.postBack(this.jsonPrettyHighlightToId(this.payReqObj.postback));
   }
 }
 

@@ -12,10 +12,15 @@ function classicHppKo() {
   this.countryCode = ko.observable('GB');
   this.hppTypeOptions = ko.observableArray(['select', 'pay', 'skipDetails']);
   this.hppType = ko.observable('select');
+  this.shopperLocale = ko.observable('en_US')
   this.hppUrl = ko.computed(function() {
     return "https://test.adyen.com/hpp/" + this.hppType() + ".shtml";
   }, this);
   this.error = ko.observable('');
+
+  this.resURL = ko.computed(function() {
+    return encodeURI(window.location.origin + "/normal-redirect/" + this.shopperReference() + "-" + this.merchantReference());
+  }, this);
 
   this.openinvoicedata = {
     numberOfLines: '2',
@@ -89,6 +94,8 @@ function classicHppKo() {
     obj.brandCode = this.brandCode() ? this.brandCode() : undefined;
     obj.countryCode = this.countryCode();
     obj.sessionValidity = this.sessionValidity();
+    obj.resURL = this.resURL();
+    obj.shopperLocale = this.shopperLocale();
 
     //obj.openinvoicedata = this.openinvoicedata;
 
