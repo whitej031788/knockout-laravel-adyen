@@ -77,6 +77,12 @@ class AdyenController extends Controller
     return response()->json($result);
   }
 
+  public function makeFlutterPayment(Request $request) {
+    $output = new \Symfony\Component\Console\Output\ConsoleOutput();
+    $output->writeln(json_encode($request->all()));
+    return response()->json($request->all());
+  }
+
   public function makePaymentSimple(Request $request) {
     try {
       $output = new \Symfony\Component\Console\Output\ConsoleOutput();

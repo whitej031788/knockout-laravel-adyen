@@ -30,6 +30,8 @@ Route::post('/adyen/createOrder', 'AdyenController@createOrder');
 
 Route::post('/adyen/makePaymentSimple', 'AdyenController@makePaymentSimple');
 
+Route::post('/payments', 'AdyenController@makeFlutterPayment');
+
 Route::post('/adyen/doCostEstimate', 'AdyenController@doCostEstimate');
 
 Route::post('/adyen/submitDonation', 'AdyenController@submitDonation');
