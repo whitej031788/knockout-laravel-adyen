@@ -46,6 +46,8 @@ Route::post('/adyen/capturePayment', 'AdyenController@capturePayment');
 
 Route::post('/adyen/applePaySession', 'AdyenController@getApplePaySession');
 
+Route::post('/adyen/tapToPaySession', 'AdyenController@tapToPaySession');
+
 Route::post('/greggs/generateAndSendLink', 'GreggsController@generateAndSendLink');
 
 Route::post('/greggs/generateAndShowInvoice', 'GreggsController@generateAndShowInvoice');
@@ -65,3 +67,8 @@ Route::post('/marketplace/checkAccountHolder', 'AdyenController@checkAccountHold
 Route::post('/marketplace/getOnboardingUrl', 'AdyenController@getOnboardingUrl');
 
 Route::post('/marketplace/getPciQuestionnaireUrl', 'AdyenController@getPciQuestionnaireUrl');
+
+// Start AfP on Balance methods
+Route::post('/balance/createLegalEntity', 'AdyenController@balanceCreateLegalEntity');
+Route::post('/balance/createAccountHolder', 'AdyenController@balanceCreateAccountHolder');
+Route::post('/balance/createOnboardingLink/{id}', 'AdyenController@balanceCreateOnboardingLink');

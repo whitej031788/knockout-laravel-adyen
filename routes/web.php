@@ -23,8 +23,12 @@ Route::get('/components', function () {
   return view('components');
 });
 
-Route::get('/adyen-platforms', function () {
-  return view('adyen-platforms');
+Route::get('/adyen-platforms-vias', function () {
+  return view('adyen-platforms-vias');
+});
+
+Route::get('/adyen-platforms-bank', function () {
+  return view('adyen-platforms-bank');
 });
 
 Route::get('/secured-fields', function () {

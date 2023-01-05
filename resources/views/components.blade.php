@@ -106,7 +106,7 @@
           </tbody>
         </table>
       </div>
-      <!-- <div class="col-md-12">
+      <div class="col-md-12">
         <div class="col-md-6 col-sm-12">
           <label>Recurring Processing Model</label>
           <select class="form-control mb-2" style="border: 2px solid white;" data-bind="options: recurringProcessingModelOptions, value: recurringProcessingModel">
@@ -116,7 +116,7 @@
           <label>Delivery Date</label>
           <input type="date" class="form-control" data-bind="value: deliveryDate" placeholder="Enter delivery date">
         </div>
-      </div> -->
+      </div>
       <div data-bind="foreach: splits, css: {'d-none': paymentMethodForm.merchantAccount() != 'JamieAdyenTestMP'}">
         <button type="button" class="close" aria-label="Close" data-bind="click: $parent.removeSplit">
           <span aria-hidden="true">&times;</span>

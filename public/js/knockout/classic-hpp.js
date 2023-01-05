@@ -3,7 +3,8 @@ function classicHppKo() {
   this.currencyCode = ko.observable('GBP');
   this.merchantReference = ko.observable((Math.floor(Math.random() * 10000000).toString()));
   this.shopperReference = ko.observable((Math.floor(Math.random() * 10000000).toString()));
-  this.shopperEmail = ko.observable('jamie.white@adyen.com');
+  this.shopperEmail = ko.observable(`jamie.white@adyen.com
+  `);
   this.merchantSig = ko.observable('');
   this.paymentAmount = ko.observable(3000);
   this.sessionValidity = ko.observable(sessValid);
@@ -56,6 +57,9 @@ function classicHppKo() {
     let self = this;
 
     if (!this.merchantSig()) {
+      console.log(this.shopperEmail());
+      // this.shopperEmail(this.shopperEmail().replace(/(\r\n|\n|\r)/gm, "").replace(/\s/g,''));
+      console.log(this.shopperEmail());
       $.ajax({
         url: '/api/adyen/signHppHmac',
         dataType: 'json',

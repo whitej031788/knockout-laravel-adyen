@@ -66,6 +66,18 @@ export function paymentMethodForm() {
     if (isSession) {
       obj.amount.value = this.amount();
       obj.reference = this.reference();
+
+      var minutesToAdd = 30;
+      var currentDate = new Date();
+      var futureDate = new Date(currentDate.getTime() + minutesToAdd*60000);
+      obj.expiresAt = futureDate.toISOString();
+      obj.additionalData = {
+        "subMerchant.subSeller1.id" : "ad9q0wytu7rjo5m",
+        "allow3DS2" : "true",
+        "subMerchant.numberOfSubSellers" : "1",
+        "subMerchant.subSeller1.name" : "Senior lifestyle",
+        "subMerchant.subSeller1.mcc" : "1234"
+     };
     }
 
     return obj;

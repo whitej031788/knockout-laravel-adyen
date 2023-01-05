@@ -118,11 +118,11 @@ class AdyenController extends Controller
         "channel" => $request->channel,
         "returnUrl" => $cacheKeyRedirect,
         "shopperInteraction" => "Ecommerce",
-        // "shopperEmail" => "jamie.white@adyen.com",
+        "shopperEmail" => "jamie.white@adyen.com",
         "merchantAccount" => $request->merchantAccount,
         "shopperReference" => $request->shopperReference,
-        "captureDelayHours" => 0,
-        //"telephoneNumber" => "07594754518"
+        "captureDelayHours" => 12,
+        "telephoneNumber" => "07594754518"
       );
 
       // Lets check for splits!
@@ -205,6 +205,7 @@ class AdyenController extends Controller
 
       if (isset($paymentMethod['type']) && strpos($paymentMethod['type'], 'paypal') !== false) {
         $params['shopperName'] = $this->fakeShopperName();
+        $params['storePaymentMethod'] = true;
       }
 
       if (isset($paymentMethod['type']) && strpos($paymentMethod['type'], 'ideal') !== false) {
@@ -265,7 +266,7 @@ class AdyenController extends Controller
       $newAmount = $request->amount;
     }
 
-    if ($request->populateFakeAddress) {
+    if ($request->populateFakeAddress || $request->channel == "iOS") {
       $billingAddress = $this->fakeBillingAddressArray();
     } else {
       $billingAddress = $request->payData['billingAddress'];
@@ -365,6 +366,7 @@ class AdyenController extends Controller
 
   // DEPRECATED
   public function signHppHmac(Request $request) {
+    header("Content-type: text/html; charset=UTF-8");
     //JSON-ify the data for the POST
     $pairs = $request->all();
     // Test Klarna
@@ -466,6 +468,14 @@ class AdyenController extends Controller
 
       return view('redirect-page', ['serverObject' => json_encode($response)]);
     }
+  }
+
+  public function tapToPaySession(Request $request) {
+    Log::debug('An informational message.');
+    $url = 'https://checkout-test.adyen.com/checkout/possdk/v68/sessions';
+    $params = array('setupToken' => $request->setupToken, 'merchantAccount' => $request->merchantAccount);
+    $result = $this->makeAdyenRequest($url, $params, true, false);
+    return response()->json($result['response']);
   }
 
   public function classicPayment(Request $request) {
@@ -802,7 +812,12 @@ class AdyenController extends Controller
     $output->writeln(json_encode($params));
     if (!$isClassic) {
       try {
-        $result = $service->$methodOrUrl($params);
+        if ($methodOrUrl == "payments") {
+          $result = $service->$methodOrUrl($params);
+        } else {
+          $result = $service->$methodOrUrl($params);
+        }
+        
         $output->writeln(json_encode($result));
       } catch (Exception $e) {
         $output->writeln(json_encode($e));
@@ -888,6 +903,99 @@ class AdyenController extends Controller
     );
   }
 
+  // $method is HTTP method
+  // $url is the endpoint to hit
+  // $params is the data
+  // $type says if this is LEM, Management, Balance or PSP authentication (which API key to use)
+  private function makeAFPOnBalanceRequest($method, $url, $params, $type) {
+    //JSON-ify the data for the POST
+    if ($method == "POST" || $method == "PATCH") {
+      $fields_string = json_encode($params);
+    } else { // This means it is a GET or DELETE, only path parameters
+      $url .= '?' . http_build_query($params);
+    }
+
+    $username = "";
+    $password = "";
+
+    switch($type) {
+      case "lem":
+        $username = \Config::get('adyen.bpLemUser');
+        $password = \Config::get('adyen.bpLemPassword');
+        break;
+      case "balance":
+        $username = \Config::get('adyen.bpBalanceUser');
+        $password = \Config::get('adyen.bpBalancePassword');
+        break;
+      case "psp":
+        $username = \Config::get('adyen.bpPspUser');
+        $password = \Config::get('adyen.bpPspPassword');
+        break;
+      case "management":
+        $username = \Config::get('adyen.bpPspUser');
+        $password = \Config::get('adyen.bpPspPassword');
+        break;
+    }
+
+    //open connection
+    $ch = curl_init();
+    //set the url, number of POST vars, POST data
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_USERPWD, $username . ":" . $password);
+
+    if ($method == "POST" || $method == "PATCH") {
+      if ($method == "POST") {
+        curl_setopt($ch, CURLOPT_POST, 1);
+      } else {
+        curl_setopt($curl, CURLOPT_CUSTOMREQUEST, 'PATCH');
+      }
+      curl_setopt($ch, CURLOPT_POSTFIELDS, $fields_string);
+      curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+        'Content-Type: application/json'
+      ));
+    }
+
+    if ($method == "DELETE") {
+      curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
+    }
+
+    //execute post
+    $result = json_decode(curl_exec($ch));
+
+    return array(
+      "method" => $url,
+      "request" => $params,
+      "response" => $result,
+    );
+  }
+
+  // Start AfP balance methods
+  public function balanceCreateLegalEntity(Request $request) {
+    $params = $request->all();
+
+    $result = $this->makeAFPOnBalanceRequest("POST", "https://kyc-test.adyen.com/lem/v2/legalEntities", $params, "lem");
+
+    return response()->json($result);
+  }
+
+  public function balanceCreateAccountHolder(Request $request) {
+    $params = $request->all();
+
+    $result = $this->makeAFPOnBalanceRequest("POST", "https://balanceplatform-api-test.adyen.com/bcl/v2/accountHolders", $params, "balance");
+
+    return response()->json($result);
+  }
+
+  public function balanceCreateOnboardingLink(Request $request, $id) {
+    $params = $request->all();
+
+    $result = $this->makeAFPOnBalanceRequest("POST", "https://kyc-test.adyen.com/lem/v2/legalEntities/" . $id . "/onboardingLinks", $params, "lem");
+
+    return response()->json($result);
+  }
+
+  // END AfP Balance Methods
   public function createAccountHolder(Request $request) {
     $params = $request->all();
 

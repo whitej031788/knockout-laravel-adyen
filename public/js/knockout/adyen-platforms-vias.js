@@ -10,7 +10,7 @@ function adyenPlatformsKo() {
     "Business"
   ]);
   this.legalEntity = ko.observable("Business");
-  this.merchantAccount = ko.observable('JamieAdyenTestMP');
+  this.merchantAccount = ko.observable('JamieAdyenTest_JamieAdyenTestMP-POS_TEST');
   this.verificationProfile = ko.observable('');
   this.email = ko.observable('jamie.white@adyen.com');
   this.country = ko.observable('GB');

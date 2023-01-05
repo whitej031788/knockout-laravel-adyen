@@ -9,7 +9,7 @@
       <input type="text" class="form-control" id="verificationProfile" placeholder="Enter verification profile" data-bind="value: verificationProfile">
     </div>
     <div class="col-md-12 text-center">
-      <h2 class="text-center mb-2" style="text-decoration:underline;">Adyen for Platforms</h2>
+      <h2 class="text-center mb-2" style="text-decoration:underline;">Adyen for Platforms - VIAS</h2>
     </div>
     <div class="col-md-8 offset-md-2">
       <p>The first step in the process is creating the sub-merchant an account on Adyen. This can and should be done as a part of your own sign up process, thus not increasing friction at all (Adyen needs minimal information to allow the partner to start processing payments)</p>

@@ -12,12 +12,12 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
     <link rel="stylesheet" href="/css/adyen-custom.css">
 
-    {{-- <link rel="stylesheet" href="https://checkoutshopper-test.adyen.com/checkoutshopper/sdk/3.11.4/adyen.css"
+    {{-- <link rel="stylesheet" href="https://checkoutshopper-test.adyen.com/checkoutshopper/sdk/5.27.0/adyen.css"
     integrity="sha384-gTrHdtmLDTaHuDUKM1okZAVgBTwjiI+E66Tz3K71+10Lhd7zxvtUF5lrHc35cNIR"
     crossorigin="anonymous"> --}}
     <link rel="stylesheet"
         type="text/css"
-        href="https://checkoutshopper-test.adyen.com/checkoutshopper/sdk/5.0.0/adyen.css"
+        href="https://checkoutshopper-test.adyen.com/checkoutshopper/sdk/5.21.0/adyen.css"
         crossorigin="anonymous">
     <!-- Adyen provides the SRI hash that you include as the integrity attribute. Refer to our release notes to get the SRI hash for the specific version. https://docs.adyen.com/checkout/release-notes -->
 
@@ -45,20 +45,23 @@
           <li class="nav-item">
             <a class="nav-link" href="/classic-hpp">Classic HPP</a>
           </li>
-          <li class="nav-item">
+          <!-- <li class="nav-item">
             <a class="nav-link" href="/pos-terminal-api">POS Terminal API</a>
-          </li>
+          </li> -->
           <li class="nav-item">
             <a class="nav-link" href="/custom-card-component">Custom Card Component</a>
           </li>
           <li class="nav-item">
             <a class="nav-link" href="/secured-fields">Secured Fields</a>
           </li>
-          <li class="nav-item">
+          <!-- <li class="nav-item">
             <a class="nav-link" href="/apple-pay-native">Apple Pay Native</a>
+          </li> -->
+          <li class="nav-item">
+            <a class="nav-link" href="/adyen-platforms-vias">AfP - VIAS</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="/adyen-platforms">Adyen Platforms</a>
+            <a class="nav-link" href="/adyen-platforms-bank">AfP - Bank</a>
           </li>
         </ul>
       </div>
@@ -66,9 +69,10 @@
     <div class="container-fluid">
       @yield('content')
     </div>
+    
     <script src="https://pay.google.com/gp/p/js/pay.js"></script>
 
-    <script src="https://checkoutshopper-test.adyen.com/checkoutshopper/sdk/5.0.0/adyen.js"
+    <script src="https://checkoutshopper-test.adyen.com/checkoutshopper/sdk/5.27.0/adyen.js"
          crossorigin="anonymous"></script>
 
     <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
